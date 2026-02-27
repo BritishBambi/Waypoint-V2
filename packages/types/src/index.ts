@@ -1,17 +1,10 @@
 export type { Database, Json } from "./database";
 
-import type { Database } from "./database";
-
-type PublicTables = Database["public"]["Tables"];
-
-/** The Row (SELECT) shape for a given table. */
-export type Tables<T extends keyof PublicTables> =
-  PublicTables[T]["Row"];
-
-/** The Insert shape for a given table. */
-export type Inserts<T extends keyof PublicTables> =
-  PublicTables[T]["Insert"];
-
-/** The Update (PATCH) shape for a given table. */
-export type Updates<T extends keyof PublicTables> =
-  PublicTables[T]["Update"];
+// Generated helpers — re-exported under both the generated names and
+// the project-convention aliases used throughout the codebase.
+export type {
+  Tables,
+  TablesInsert as Inserts,
+  TablesUpdate as Updates,
+  Enums,
+} from "./database";

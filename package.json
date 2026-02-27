@@ -5,9 +5,14 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",  
+    "db:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > packages/types/src/database.ts",
+    "supabase:start": "supabase start",
     "generate:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > packages/types/src/database.ts"
   },
   "devDependencies": {
+    "supabase": "^2.76.15",
     "turbo": "^2.0.0",
     "typescript": "^5.0.0"
   },
