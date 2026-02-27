@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Waypoint",
+    "slug": "waypoint",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "waypoint",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.waypoint.app"
+    },
+    "android": {
+      "package": "com.waypoint.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

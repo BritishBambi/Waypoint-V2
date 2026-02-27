@@ -1,0 +1,25 @@
+{
+  "name": "@waypoint/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "@waypoint/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "typescript": "^5"
+  },
+  "peerDependencies": {
+    "react": "^18"
+  }
+}
