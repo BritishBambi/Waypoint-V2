@@ -27,10 +27,13 @@ export async function Nav() {
 
         <div className="flex items-center gap-3">
           {username && (
-            <span className="text-xs text-zinc-500">
+            <Link
+              href={`/user/${username}`}
+              className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+            >
               Logged in as{" "}
               <span className="text-zinc-400">{username}</span>
-            </span>
+            </Link>
           )}
 
           <Link

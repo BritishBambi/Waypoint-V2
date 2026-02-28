@@ -1,0 +1,434 @@
+// apps/web/app/user/[username]/page.tsx
+// Server-rendered public profile page.
+//
+// Data fetched in parallel:
+//   - profiles row (by username — 404 if missing)
+//   - game_logs joined with games (for library + currently playing)
+//   - reviews joined with games (for the reviews section)
+//   - auth.getUser() (to detect the profile owner)
+//
+// All sections are static HTML — no client components needed here.
+
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import type { Tables } from "@waypoint/types";
+import { createClient } from "@/lib/supabase/server";
+
+// ─── Join types ───────────────────────────────────────────────────────────────
+// Supabase returns nested objects for FK joins. We define our own shapes and
+// cast after fetching, since the generated DB types don't express join shapes.
+
+type GameStub = {
+  id: number;
+  slug: string;
+  title: string;
+  cover_url: string | null;
+};
+
+type LogWithGame = {
+  id: string;
+  status: string;
+  updated_at: string;
+  games: GameStub | null;
+};
+
+type ReviewWithGame = {
+  id: string;
+  rating: number;
+  body: string | null;
+  published_at: string | null;
+  games: GameStub | null;
+};
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+// Fixed palette for generated avatars — consistent per username via hash.
+const AVATAR_COLORS = [
+  "bg-indigo-600",
+  "bg-violet-600",
+  "bg-teal-600",
+  "bg-rose-600",
+  "bg-amber-600",
+  "bg-emerald-600",
+  "bg-sky-600",
+  "bg-pink-600",
+];
+
+// User-requested badge colours differ from the game-detail page —
+// teal for Playing, violet for Played, amber for Wishlist, muted red for Dropped.
+const STATUS_BADGE: Record<string, string> = {
+  playing:  "bg-teal-500/20   text-teal-300   border-teal-500/40",
+  played:   "bg-violet-500/20 text-violet-300 border-violet-500/40",
+  wishlist: "bg-amber-500/20  text-amber-300  border-amber-500/40",
+  dropped:  "bg-red-900/30    text-red-400    border-red-800/50",
+  shelved:  "bg-zinc-700/30   text-zinc-400   border-zinc-700/50",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  playing: "Playing", played: "Played", wishlist: "Wishlist",
+  dropped: "Dropped", shelved: "Shelved",
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function avatarBg(username: string): string {
+  const hash = username.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric", month: "short", year: "numeric",
+  });
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default async function UserProfilePage({
+  params,
+}: {
+  params: { username: string };
+}) {
+  const { username } = params;
+  const supabase = await createClient();
+
+  // ── 1. Profile lookup ───────────────────────────────────────────────────────
+  // maybeSingle() returns null (no error) when no row matches, so we can
+  // notFound() cleanly without a Supabase error polluting the response.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("username", username)
+    .maybeSingle();
+
+  if (!profile) notFound();
+
+  // ── 2. Parallel data fetching ───────────────────────────────────────────────
+  const [
+    { data: rawLogs },
+    { data: rawReviews },
+    { data: { user } },
+  ] = await Promise.all([
+    supabase
+      .from("game_logs")
+      .select("id, status, updated_at, games(id, slug, title, cover_url)")
+      .eq("user_id", profile.id)
+      .order("updated_at", { ascending: false }),
+
+    supabase
+      .from("reviews")
+      .select("id, rating, body, published_at, games(id, slug, title, cover_url)")
+      .eq("user_id", profile.id)
+      .eq("is_draft", false)
+      .not("published_at", "is", null)
+      .order("published_at", { ascending: false }),
+
+    supabase.auth.getUser(),
+  ]);
+
+  const logs = (rawLogs ?? []) as unknown as LogWithGame[];
+  const reviews = (rawReviews ?? []) as unknown as ReviewWithGame[];
+
+  // ── 3. Derived values ───────────────────────────────────────────────────────
+  const currentlyPlaying = logs.filter((l) => l.status === "playing");
+  const totalPlayed = logs.filter((l) => l.status === "played").length;
+  const isOwnProfile = user?.id === profile.id;
+  const displayName = profile.display_name ?? profile.username;
+
+  // ── 4. Render ───────────────────────────────────────────────────────────────
+  return (
+    <main className="mx-auto max-w-6xl px-4 py-12">
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <section className="flex flex-col items-start gap-6 sm:flex-row sm:items-start">
+
+        {/* Avatar — image if set, generated initial circle if not */}
+        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full sm:h-28 sm:w-28">
+          {profile.avatar_url ? (
+            <Image
+              src={profile.avatar_url}
+              alt={displayName}
+              fill
+              sizes="112px"
+              className="object-cover"
+              priority
+            />
+          ) : (
+            <div
+              className={`flex h-full w-full items-center justify-center text-3xl font-bold text-white ${avatarBg(profile.username)}`}
+            >
+              {displayName.slice(0, 1).toUpperCase()}
+            </div>
+          )}
+        </div>
+
+        {/* Name, username, bio, stats, edit button */}
+        <div className="flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-white">{displayName}</h1>
+              <p className="text-sm text-zinc-500">@{profile.username}</p>
+            </div>
+
+            {isOwnProfile && (
+              <Link
+                href="/settings/profile"
+                className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+              >
+                Edit Profile
+              </Link>
+            )}
+          </div>
+
+          {profile.bio && (
+            <p className="mt-3 max-w-prose text-sm leading-relaxed text-zinc-300">
+              {profile.bio}
+            </p>
+          )}
+
+          {/* Stats row */}
+          <div className="mt-4 flex items-center gap-6">
+            <StatPill value={logs.length} label="Games Logged" />
+            <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
+            <StatPill value={totalPlayed} label="Played" />
+            <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
+            <StatPill value={reviews.length} label="Reviews" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Currently Playing ────────────────────────────────────────────────── */}
+      {/* Only rendered when the user has at least one game with status = playing */}
+      {currentlyPlaying.length > 0 && (
+        <section className="mt-12">
+          <h2 className="mb-4 text-base font-semibold text-white">
+            Currently Playing
+          </h2>
+
+          {/* Horizontally scrollable row — shrink-0 prevents cards from collapsing */}
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {currentlyPlaying.map(({ id, games }) =>
+              games ? (
+                <Link key={id} href={`/games/${games.slug}`} className="group shrink-0">
+                  <div className="relative aspect-[2/3] w-28 overflow-hidden rounded-lg bg-zinc-800">
+                    {games.cover_url ? (
+                      <Image
+                        src={games.cover_url}
+                        alt={games.title}
+                        fill
+                        sizes="112px"
+                        className="object-cover transition-transform duration-200 group-hover:scale-105"
+                      />
+                    ) : (
+                      <NoCover />
+                    )}
+                  </div>
+                  <p className="mt-1.5 w-28 text-xs text-zinc-400 line-clamp-2 transition-colors group-hover:text-white">
+                    {games.title}
+                  </p>
+                </Link>
+              ) : null
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── Game Library ─────────────────────────────────────────────────────── */}
+      <section className="mt-12">
+        <h2 className="mb-4 text-base font-semibold text-white">Game Library</h2>
+
+        {logs.length === 0 ? (
+          <EmptyLibrary isOwnProfile={isOwnProfile} />
+        ) : (
+          // 2-col mobile → 3-col tablet → 4-col desktop
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {logs.map(({ id, status, games }) =>
+              games ? (
+                <Link key={id} href={`/games/${games.slug}`} className="group">
+                  <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800">
+                    {games.cover_url ? (
+                      <Image
+                        src={games.cover_url}
+                        alt={games.title}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        className="object-cover transition-transform duration-200 group-hover:scale-105"
+                      />
+                    ) : (
+                      <NoCover />
+                    )}
+                  </div>
+                  <div className="mt-1.5 space-y-1">
+                    <p className="text-xs font-medium text-zinc-300 line-clamp-1 transition-colors group-hover:text-white">
+                      {games.title}
+                    </p>
+                    <span
+                      className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.shelved}`}
+                    >
+                      {STATUS_LABEL[status] ?? status}
+                    </span>
+                  </div>
+                </Link>
+              ) : null
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Reviews ──────────────────────────────────────────────────────────── */}
+      <section className="mt-12">
+        <h2 className="mb-4 text-base font-semibold text-white">Reviews</h2>
+
+        {reviews.length === 0 ? (
+          <p className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-6 py-10 text-center text-sm text-zinc-500">
+            No reviews yet.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {reviews.map((review) => (
+              <ReviewCard key={review.id} review={review} />
+            ))}
+          </div>
+        )}
+      </section>
+
+    </main>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+// Numeric stat with a label beneath it
+function StatPill({ value, label }: { value: number; label: string }) {
+  return (
+    <div>
+      <p className="text-lg font-bold leading-none text-white">{value}</p>
+      <p className="mt-0.5 text-xs text-zinc-500">{label}</p>
+    </div>
+  );
+}
+
+// Review card: small cover left, title + rating + body + date right
+function ReviewCard({ review }: { review: ReviewWithGame }) {
+  const { rating, body, published_at, games } = review;
+  if (!games) return null;
+
+  return (
+    <Link
+      href={`/games/${games.slug}`}
+      className="group flex gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700"
+    >
+      {/* Small cover */}
+      <div className="relative h-[72px] w-12 shrink-0 overflow-hidden rounded-md bg-zinc-800">
+        {games.cover_url ? (
+          <Image
+            src={games.cover_url}
+            alt={games.title}
+            fill
+            sizes="48px"
+            className="object-cover"
+          />
+        ) : (
+          <NoCover />
+        )}
+      </div>
+
+      {/* Text content */}
+      <div className="min-w-0 flex-1">
+        <p className="font-medium text-white transition-colors group-hover:text-indigo-300">
+          {games.title}
+        </p>
+
+        {/* Star rating */}
+        <div className="mt-1 flex items-center gap-1">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="text-yellow-400"
+            aria-hidden="true"
+          >
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+          <span className="text-sm font-semibold text-white">{rating}</span>
+          <span className="text-xs text-zinc-500">/5</span>
+        </div>
+
+        {/* Body — clamped to 3 lines */}
+        {body && (
+          <p className="mt-1.5 text-sm leading-relaxed text-zinc-400 line-clamp-3">
+            {body}
+          </p>
+        )}
+
+        {published_at && (
+          <p className="mt-2 text-xs text-zinc-600">{formatDate(published_at)}</p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+// Empty state shown when a user has no game logs at all
+function EmptyLibrary({ isOwnProfile }: { isOwnProfile: boolean }) {
+  return (
+    <div className="flex flex-col items-center rounded-xl border border-zinc-800 bg-zinc-900/50 py-16 text-center">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="32"
+        height="32"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="mb-3 text-zinc-600"
+        aria-hidden="true"
+      >
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <path d="M6 12h4M8 10v4" />
+        <circle cx="15" cy="12" r="1" />
+        <circle cx="18" cy="12" r="1" />
+      </svg>
+      <p className="text-sm font-medium text-zinc-300">Nothing logged yet</p>
+      {isOwnProfile && (
+        <Link
+          href="/search"
+          className="mt-3 text-sm text-indigo-400 transition-colors hover:text-indigo-300"
+        >
+          Search for games to log →
+        </Link>
+      )}
+    </div>
+  );
+}
+
+// Placeholder for missing cover art
+function NoCover() {
+  return (
+    <div className="flex h-full w-full items-center justify-center">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="text-zinc-600"
+        aria-hidden="true"
+      >
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <path d="M6 12h4M8 10v4" />
+        <circle cx="15" cy="12" r="1" />
+        <circle cx="18" cy="12" r="1" />
+      </svg>
+    </div>
+  );
+}
