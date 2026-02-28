@@ -5,7 +5,7 @@
 // initial state and re-fetches from the browser Supabase client after a write.
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useId } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { ReviewWithAuthor, LogSummary } from "./page";
 
@@ -302,7 +302,7 @@ function ReviewCard({ review, isExpanded, onToggleExpand }: ReviewCardProps) {
               <span className="text-sm font-semibold text-white">
                 {review.rating}
               </span>
-              <span className="text-xs text-zinc-500">/10</span>
+              <span className="text-xs text-zinc-500">/5</span>
             </span>
           </div>
           {dateStr && (
@@ -360,6 +360,9 @@ function EmptyReviews() {
 }
 
 // ─── StarPicker ───────────────────────────────────────────────────────────────
+// 5-star picker with half-star increments (0.5, 1, 1.5 … 5.0).
+// Left half of each star = half-star value; right half = full-star value.
+// Clicking the current value deselects (rating resets to 0).
 
 function StarPicker({
   value,
@@ -369,42 +372,88 @@ function StarPicker({
   onChange: (n: number) => void;
 }) {
   const [hovered, setHovered] = useState(0);
+  const uid = useId().replace(/:/g, "");
+
+  const display = hovered > 0 ? hovered : value;
+
+  function starState(i: number): "full" | "half" | "empty" {
+    if (display >= i) return "full";
+    if (display >= i - 0.5) return "half";
+    return "empty";
+  }
 
   return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: 10 }, (_, i) => i + 1).map((star) => {
-        const filled = hovered ? star <= hovered : star <= value;
-        return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: 5 }, (_, k) => k + 1).map((i) => (
+        <div
+          key={i}
+          className="relative"
+          onMouseLeave={() => setHovered(0)}
+        >
+          <StarSvg state={starState(i)} clipId={`${uid}-${i}`} />
+          {/* Left half → half-star */}
           <button
-            key={star}
             type="button"
-            onClick={() => onChange(star === value ? 0 : star)}
-            onMouseEnter={() => setHovered(star)}
-            onMouseLeave={() => setHovered(0)}
-            className="p-0.5 text-yellow-400 transition-transform hover:scale-110"
-            aria-label={`Rate ${star} out of 10`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill={filled ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-          </button>
-        );
-      })}
+            aria-label={`Rate ${i - 0.5} out of 5`}
+            className="absolute inset-0 w-1/2 cursor-pointer"
+            onClick={() => onChange(value === i - 0.5 ? 0 : i - 0.5)}
+            onMouseEnter={() => setHovered(i - 0.5)}
+          />
+          {/* Right half → full star */}
+          <button
+            type="button"
+            aria-label={`Rate ${i} out of 5`}
+            className="absolute inset-y-0 right-0 w-1/2 cursor-pointer"
+            onClick={() => onChange(value === i ? 0 : i)}
+            onMouseEnter={() => setHovered(i)}
+          />
+        </div>
+      ))}
       {value > 0 && (
-        <span className="ml-2 text-sm text-zinc-400">{value}/10</span>
+        <span className="ml-1.5 text-sm text-zinc-400">{value}/5</span>
       )}
     </div>
+  );
+}
+
+// ─── StarSvg ──────────────────────────────────────────────────────────────────
+
+function StarSvg({
+  state,
+  clipId,
+}: {
+  state: "full" | "half" | "empty";
+  clipId: string;
+}) {
+  const POINTS =
+    "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2";
+
+  if (state === "full") {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" className="text-yellow-400">
+        <polygon points={POINTS} fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (state === "half") {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+        <defs>
+          <clipPath id={clipId}>
+            <rect x="0" y="0" width="12" height="24" />
+          </clipPath>
+        </defs>
+        <polygon points={POINTS} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" className="text-zinc-600" />
+        <polygon points={POINTS} fill="currentColor" clipPath={`url(#${clipId})`} className="text-yellow-400" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" className="text-zinc-600">
+      <polygon points={POINTS} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
   );
 }
 

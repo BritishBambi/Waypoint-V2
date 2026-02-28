@@ -1,24 +1,37 @@
 "use client";
 
 // GameLogSection — the "Log this Game" button and the modal it opens.
-// This is a Client Component because it owns interactive state (modal open/close,
-// form fields, Supabase mutations).
 //
-// After a successful save we call router.refresh() so the Server Component
-// re-renders and the ReviewSection receives the updated existingLog prop.
+// State is managed by useGameLog (TanStack Query) rather than plain useState,
+// so the button updates reactively and we can invalidate the cache after a save
+// without calling router.refresh() for this subtree.
+//
+// After a successful save we still call router.refresh() so the Server Component
+// re-renders and ReviewSection receives the updated existingLog prop (it lives
+// outside the TanStack Query boundary).
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useId } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { useGameLog, gameLogKey } from "@waypoint/api-client";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "@/lib/toast";
 import type { LogSummary } from "./page";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// Full game shape needed for the existence check + edge-function fallback.
 interface Game {
   id: number;
   title: string;
   slug: string;
   cover_url: string | null;
+  summary: string | null;
+  genres: string[] | null;
+  platforms: string[] | null;
+  release_date: string | null;
+  igdb_rating: number | null;
 }
 
 const STATUSES = [
@@ -48,8 +61,18 @@ interface Props {
 
 export function GameLogSection({ game, userId, existingLog }: Props) {
   const router = useRouter();
-  const [log, setLog] = useState<LogSummary | null>(existingLog);
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Create the auth-aware browser client once. createBrowserClient (from
+  // @supabase/ssr) returns a singleton internally, so this is safe to call
+  // at component level and pass as a stable reference.
+  const supabase = useMemo(() => createClient(), []);
+
+  // useGameLog seeds the cache from SSR data (existingLog) so the button
+  // renders immediately with no loading flash. It re-fetches in the background
+  // to stay in sync, and is updated optimistically after a save.
+  const { data: log } = useGameLog(supabase, game.id, userId, existingLog);
 
   if (!userId) {
     return (
@@ -62,23 +85,33 @@ export function GameLogSection({ game, userId, existingLog }: Props) {
     );
   }
 
+  function handleSaved(newLog: LogSummary) {
+    // Optimistically update the cache so the button reflects the new status
+    // without waiting for a refetch.
+    queryClient.setQueryData(gameLogKey(game.id, userId!), newLog);
+    // Schedule a background refetch to confirm the data is consistent.
+    queryClient.invalidateQueries({ queryKey: gameLogKey(game.id, userId!) });
+    setIsOpen(false);
+    // Refresh the Server Component subtree so ReviewSection gets the new log id.
+    router.refresh();
+  }
+
   return (
     <>
       {log ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <span
-            className={`rounded-full border px-4 py-1 text-sm font-medium ${STATUS_BADGE[log.status] ?? STATUS_BADGE.shelved}`}
-          >
-            {STATUSES.find((s) => s.value === log.status)?.label ?? log.status}
-          </span>
-          <button
-            onClick={() => setIsOpen(true)}
-            className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
-          >
-            Edit Log
-          </button>
-        </div>
+        // ── Logged state: single pill-button showing status + "Edit" ──────────
+        <button
+          onClick={() => setIsOpen(true)}
+          className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors hover:brightness-110 ${STATUS_BADGE[log.status] ?? STATUS_BADGE.shelved}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+          {STATUSES.find((s) => s.value === log.status)?.label ?? log.status}
+          <span className="text-current opacity-60">· Edit</span>
+        </button>
       ) : (
+        // ── Unlogged state: primary "Log this Game" button ────────────────────
         <button
           onClick={() => setIsOpen(true)}
           className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 active:bg-indigo-700"
@@ -105,14 +138,9 @@ export function GameLogSection({ game, userId, existingLog }: Props) {
         <LogModal
           game={game}
           userId={userId}
-          existingLog={log}
+          existingLog={log ?? null}
           onClose={() => setIsOpen(false)}
-          onSaved={(newLog) => {
-            setLog(newLog);
-            setIsOpen(false);
-            // Refresh the Server Component so ReviewSection gets the new log id.
-            router.refresh();
-          }}
+          onSaved={handleSaved}
         />
       )}
     </>
@@ -133,66 +161,123 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
   const [status, setStatus] = useState<Status>(
     (existingLog?.status as Status) ?? "played"
   );
-  const [rating, setRating] = useState(0);   // 0 = no rating
+  const [rating, setRating] = useState(0);
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
     setIsSaving(true);
-    setError(null);
 
+    // We always create the client fresh inside the mutation handler so it
+    // has the latest auth session.
     const supabase = createClient();
-    let logId = existingLog?.id;
 
-    if (existingLog) {
-      // Update status on the existing log.
-      const { error: updateErr } = await supabase
-        .from("game_logs")
-        .update({ status })
-        .eq("id", existingLog.id);
+    // ── Step 1: Ensure the game exists in the games table ──────────────────
+    //
+    // The igdb-game-detail edge function upserts the game on every page load
+    // (using the service role, which bypasses the read-only RLS on `games`),
+    // so in practice the game is always present by the time this runs.
+    // This check is purely defensive — if for some reason the game is absent
+    // (e.g. a very fast page load where the edge function hasn't completed),
+    // we re-trigger the sync before trying to create the FK-constrained log row.
+    const { data: existingGame } = await supabase
+      .from("games")
+      .select("id")
+      .eq("id", game.id)
+      .maybeSingle();
 
-      if (updateErr) {
-        setError(updateErr.message);
+    if (!existingGame) {
+      // Re-trigger the edge function, which upserts via the service role.
+      // Direct insert is not possible here because the `games` RLS policy
+      // only allows SELECT for regular users — all writes use the service role.
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const syncRes = await fetch(`${supabaseUrl}/functions/v1/igdb-game-detail`, {
+        method: "POST",
+        headers: {
+          "apikey": anonKey,
+          "Authorization": `Bearer ${anonKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ slug: game.slug }),
+      });
+      if (!syncRes.ok) {
+        toast(`Could not sync game data. Please try again.`, "error");
         setIsSaving(false);
         return;
       }
-    } else {
-      // Create a new log.
-      const { data, error: insertErr } = await supabase
-        .from("game_logs")
-        .insert({ user_id: userId, game_id: game.id, status })
-        .select("id")
-        .single();
-
-      if (insertErr) {
-        setError(insertErr.message);
-        setIsSaving(false);
-        return;
-      }
-
-      logId = data.id;
     }
 
-    // Insert a diary entry when the user provided a note and/or a rating.
-    // diary_entries.body is NOT NULL — use an empty string if only a rating
-    // was provided so the entry still records the user's score.
-    if (note.trim() || rating > 0) {
+    // ── Step 2: Upsert game_logs ───────────────────────────────────────────
+    //
+    // Using upsert with onConflict on the unique (user_id, game_id) pair means
+    // "create if new, update status if existing" — a single operation that
+    // handles both the first log and every edit.
+    const { data: logData, error: logErr } = await supabase
+      .from("game_logs")
+      .upsert(
+        { user_id: userId, game_id: game.id, status },
+        { onConflict: "user_id,game_id" }
+      )
+      .select("id")
+      .single();
+
+    if (logErr || !logData) {
+      toast(logErr?.message ?? "Failed to save log.", "error");
+      setIsSaving(false);
+      return;
+    }
+
+    const logId = logData.id;
+
+    // ── Step 3: Upsert review (if a rating was given) ──────────────────────
+    //
+    // reviews has UNIQUE (log_id), so upsert handles both "first review" and
+    // "updating an existing review" without needing a separate lookup.
+    if (rating > 0) {
+      const { error: reviewErr } = await supabase
+        .from("reviews")
+        .upsert(
+          {
+            log_id: logId,
+            user_id: userId,
+            game_id: game.id,
+            rating,
+            is_draft: false,
+            published_at: new Date().toISOString(),
+          },
+          { onConflict: "log_id" }
+        );
+
+      if (reviewErr) {
+        // Non-fatal — the log was saved. Surface as a warning.
+        toast(`Log saved, but rating could not be recorded: ${reviewErr.message}`, "error");
+      }
+    }
+
+    // ── Step 4: Insert diary entry (if a note was written) ─────────────────
+    //
+    // Each save with a note creates a new diary entry (diary entries accumulate
+    // over time; they are not updated like the log or review). We only insert
+    // if there's actual text — silent on failure to avoid blocking the UX.
+    if (note.trim()) {
       const { error: diaryErr } = await supabase.from("diary_entries").insert({
-        log_id: logId!,
+        log_id: logId,
         user_id: userId,
-        body: note.trim() || "",
-        rating: rating > 0 ? rating : null,
+        body: note.trim(),
         play_date: new Date().toISOString().split("T")[0],
       });
 
       if (diaryErr) {
-        // Non-fatal: the log was saved. Surface as a warning.
         console.error("Diary entry error:", diaryErr.message);
       }
     }
 
-    onSaved({ id: logId!, status });
+    // ── Step 5: Success ────────────────────────────────────────────────────
+    toast(`${game.title} logged!`);
+    onSaved({ id: logId, status });
+    // isSaving intentionally left true — the modal closes immediately and
+    // there's no point flashing the button back to "Save".
   }
 
   return (
@@ -207,9 +292,9 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
-          <h2 className="text-base font-semibold text-white">
+          <p className="text-sm font-medium text-zinc-500">
             {existingLog ? "Edit Log" : "Log this Game"}
-          </h2>
+          </p>
           <button
             onClick={onClose}
             className="rounded-md p-1 text-zinc-500 transition-colors hover:text-white"
@@ -224,10 +309,8 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
         {/* Body */}
         <div className="space-y-6 px-6 py-5">
 
-          {/* Game title */}
-          <p className="text-sm text-zinc-400">
-            <span className="font-medium text-white">{game.title}</span>
-          </p>
+          {/* Game title — h2-sized heading, not a form label */}
+          <p className="text-xl font-bold text-white">{game.title}</p>
 
           {/* Status selector */}
           <div>
@@ -278,13 +361,6 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
               className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
-
-          {/* Error */}
-          {error && (
-            <p className="rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-400">
-              {error}
-            </p>
-          )}
         </div>
 
         {/* Footer */}
@@ -311,7 +387,9 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
 }
 
 // ─── StarPicker ───────────────────────────────────────────────────────────────
-// 10-star rating picker. Clicking the active star deselects (rating becomes 0).
+// 5-star picker with half-star increments (0.5, 1, 1.5 … 5.0).
+// Left half of each star = half-star value; right half = full-star value.
+// Clicking the current value deselects (rating resets to 0).
 
 function StarPicker({
   value,
@@ -321,41 +399,112 @@ function StarPicker({
   onChange: (n: number) => void;
 }) {
   const [hovered, setHovered] = useState(0);
+  const uid = useId().replace(/:/g, "");
+
+  const display = hovered > 0 ? hovered : value;
+
+  function starState(i: number): "full" | "half" | "empty" {
+    if (display >= i) return "full";
+    if (display >= i - 0.5) return "half";
+    return "empty";
+  }
 
   return (
-    <div className="flex items-center gap-0.5">
-      {Array.from({ length: 10 }, (_, i) => i + 1).map((star) => {
-        const filled = hovered ? star <= hovered : star <= value;
-        return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: 5 }, (_, k) => k + 1).map((i) => (
+        <div
+          key={i}
+          className="relative"
+          onMouseLeave={() => setHovered(0)}
+        >
+          <StarSvg state={starState(i)} clipId={`${uid}-${i}`} />
+          {/* Left half → half-star */}
           <button
-            key={star}
             type="button"
-            onClick={() => onChange(star === value ? 0 : star)}
-            onMouseEnter={() => setHovered(star)}
-            onMouseLeave={() => setHovered(0)}
-            className="p-0.5 text-yellow-400 transition-transform hover:scale-110"
-            aria-label={`Rate ${star} out of 10`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill={filled ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-          </button>
-        );
-      })}
+            aria-label={`Rate ${i - 0.5} out of 5`}
+            className="absolute inset-0 w-1/2 cursor-pointer"
+            onClick={() => onChange(value === i - 0.5 ? 0 : i - 0.5)}
+            onMouseEnter={() => setHovered(i - 0.5)}
+          />
+          {/* Right half → full star */}
+          <button
+            type="button"
+            aria-label={`Rate ${i} out of 5`}
+            className="absolute inset-y-0 right-0 w-1/2 cursor-pointer"
+            onClick={() => onChange(value === i ? 0 : i)}
+            onMouseEnter={() => setHovered(i)}
+          />
+        </div>
+      ))}
       {value > 0 && (
-        <span className="ml-2 text-sm text-zinc-400">{value}/10</span>
+        <span className="ml-1.5 text-sm text-zinc-400">{value}/5</span>
       )}
     </div>
+  );
+}
+
+// ─── StarSvg ──────────────────────────────────────────────────────────────────
+// Renders a single star in full / half / empty state.
+// For "half", a <clipPath> inside the SVG's own <defs> clips the fill to the
+// left 50% of the 24×24 viewBox (x < 12).
+
+function StarSvg({
+  state,
+  clipId,
+}: {
+  state: "full" | "half" | "empty";
+  clipId: string;
+}) {
+  const POINTS =
+    "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2";
+
+  if (state === "full") {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className="text-yellow-400"
+      >
+        <polygon points={POINTS} fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+
+  if (state === "half") {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <defs>
+          <clipPath id={clipId}>
+            <rect x="0" y="0" width="12" height="24" />
+          </clipPath>
+        </defs>
+        {/* Empty outline */}
+        <polygon points={POINTS} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" className="text-zinc-600" />
+        {/* Left-half fill */}
+        <polygon points={POINTS} fill="currentColor" clipPath={`url(#${clipId})`} className="text-yellow-400" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="text-zinc-600"
+    >
+      <polygon points={POINTS} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
   );
 }

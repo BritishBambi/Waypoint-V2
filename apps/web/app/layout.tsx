@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Nav } from "@/components/Nav";
+import { Toaster } from "@/components/Toaster";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -19,6 +20,7 @@ export default function RootLayout({
         <Providers>
           <Nav />
           {children}
+          <Toaster />
         </Providers>
       </body>
     </html>

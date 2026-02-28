@@ -217,7 +217,17 @@ export default async function GameDetailPage({ params }: Props) {
             {/* Log button / status — Client Component */}
             <div className="mt-6">
               <GameLogSection
-                game={{ id: game.id, title: game.title, slug: game.slug, cover_url: game.cover_url }}
+                game={{
+                  id: game.id,
+                  title: game.title,
+                  slug: game.slug,
+                  cover_url: game.cover_url,
+                  summary: game.summary,
+                  genres: game.genres,
+                  platforms: game.platforms,
+                  release_date: game.release_date,
+                  igdb_rating: game.igdb_rating,
+                }}
                 userId={user?.id ?? null}
                 existingLog={existingLog}
               />
