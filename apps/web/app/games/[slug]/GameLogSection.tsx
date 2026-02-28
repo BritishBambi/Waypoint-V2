@@ -208,6 +208,36 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
       }
     }
 
+    // ── Step 1.5: Ensure a profiles row exists for this user ──────────────
+    //
+    // game_logs.user_id has a FK → profiles(id). If the handle_new_user trigger
+    // didn't fire when the account was created (e.g. the migration hadn't been
+    // pushed yet, or the trigger failed silently on a username collision), there
+    // will be no profiles row and the game_logs insert will violate the FK.
+    //
+    // The "profiles: insert own" RLS policy allows id = auth.uid(), so the user
+    // can create their own profile row. We use maybeSingle() to check first and
+    // only insert if missing — this is a no-op on every subsequent save.
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!existingProfile) {
+      // Replicate exactly what handle_new_user does: id + deterministic username.
+      const generatedUsername = "user_" + userId.replace(/-/g, "").slice(0, 12);
+      const { error: profileErr } = await supabase
+        .from("profiles")
+        .insert({ id: userId, username: generatedUsername });
+
+      if (profileErr) {
+        toast(`Could not create profile: ${profileErr.message}`, "error");
+        setIsSaving(false);
+        return;
+      }
+    }
+
     // ── Step 2: Upsert game_logs ───────────────────────────────────────────
     //
     // Using upsert with onConflict on the unique (user_id, game_id) pair means
@@ -230,11 +260,12 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
 
     const logId = logData.id;
 
-    // ── Step 3: Upsert review (if a rating was given) ──────────────────────
+    // ── Step 3: Upsert review (if a rating or note was given) ─────────────
     //
     // reviews has UNIQUE (log_id), so upsert handles both "first review" and
     // "updating an existing review" without needing a separate lookup.
-    if (rating > 0) {
+    // Gate on rating OR note — a note without a star rating is still a review.
+    if (rating > 0 || note.trim()) {
       const { error: reviewErr } = await supabase
         .from("reviews")
         .upsert(
@@ -242,7 +273,8 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
             log_id: logId,
             user_id: userId,
             game_id: game.id,
-            rating,
+            rating: rating > 0 ? rating : null,
+            body: note.trim() || null,
             is_draft: false,
             published_at: new Date().toISOString(),
           },
@@ -251,7 +283,7 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
 
       if (reviewErr) {
         // Non-fatal — the log was saved. Surface as a warning.
-        toast(`Log saved, but rating could not be recorded: ${reviewErr.message}`, "error");
+        toast(`Log saved, but review could not be recorded: ${reviewErr.message}`, "error");
       }
     }
 
