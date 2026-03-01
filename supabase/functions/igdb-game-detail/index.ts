@@ -31,6 +31,8 @@ interface IgdbGame {
   standalone_expansions?: number[]; // IDs of standalone expansions
   remakes?: number[];
   remasters?: number[];
+  artworks?: Array<{ url: string; width: number; height: number }>;
+  screenshots?: Array<{ url: string; width: number; height: number }>;
 }
 
 interface IgdbDlc {
@@ -77,13 +79,28 @@ async function getAccessToken(
 
 function transformGame(game: IgdbGame) {
   const coverUrl = game.cover?.url
-    ? `https:${game.cover.url.replace("t_thumb", "t_cover_big")}`
+    ? `https:${game.cover.url}`
+        .replace("t_thumb",          "t_720p")
+        .replace("t_micro",          "t_720p")
+        .replace("t_cover_small",    "t_720p")
+        .replace("t_cover_big",      "t_720p")
+        .replace("t_cover_big_2x",   "t_720p")
     : null;
 
   const igdbRating =
     game.rating != null
       ? Math.min(parseFloat(game.rating.toFixed(2)), 99.99)
       : null;
+
+  // Pick the best landscape image for the backdrop banner.
+  // Prefer artworks filtered to landscape orientation (width > height) —
+  // portrait and logo-only artworks are skipped. Fall back to the first
+  // screenshot (almost always 16:9) if no landscape artwork exists.
+  const landscapeArt = game.artworks?.find((a) => a.width > a.height);
+  const backdrop = landscapeArt ?? game.screenshots?.[0] ?? null;
+  const banner_url = backdrop
+    ? `https:${backdrop.url}`.replace(/\/t_[^/]+\//, "/t_1080p/")
+    : null;
 
   return {
     id: game.id,
@@ -97,9 +114,9 @@ function transformGame(game: IgdbGame) {
       ? new Date(game.first_release_date * 1000).toISOString().split("T")[0]
       : null,
     igdb_rating: igdbRating,
-    // rating_count is not in the games schema but useful for the detail page UI.
-    // We return it alongside the schema-shaped object rather than storing it.
+    // These fields are not in the games schema — returned for the UI only, not stored.
     rating_count: game.rating_count ?? null,
+    banner_url,
   };
 }
 
@@ -168,7 +185,9 @@ Deno.serve(async (req) => {
     `where slug = "${safeSlug}"; ` +
     `fields id,name,slug,cover.url,summary,genres.name,platforms.name,` +
     `first_release_date,rating,rating_count,category,` +
-    `dlcs,expansions,standalone_expansions; ` +
+    `dlcs,expansions,standalone_expansions,` +
+    `artworks.url,artworks.width,artworks.height,` +
+    `screenshots.url,screenshots.width,screenshots.height; ` +
     `limit 1;`;
 
   let igdbRes: Response;
@@ -241,8 +260,8 @@ Deno.serve(async (req) => {
       if (!supabaseUrl || !serviceRoleKey) return;
 
       const admin = createClient(supabaseUrl, serviceRoleKey);
-      // Destructure rating_count out — it's not a column in the games table.
-      const { rating_count: _rc, ...gameRow } = game;
+      // Destructure UI-only fields out — they're not columns in the games table.
+      const { rating_count: _rc, banner_url: _bu, ...gameRow } = game;
 
       const { error: upsertErr } = await admin
         .from("games")
@@ -266,7 +285,12 @@ Deno.serve(async (req) => {
       slug: d.slug,
       title: d.name,
       cover_url: d.cover?.url
-        ? `https:${d.cover.url.replace("t_thumb", "t_cover_big")}`
+        ? `https:${d.cover.url}`
+            .replace("t_thumb",        "t_720p")
+            .replace("t_micro",        "t_720p")
+            .replace("t_cover_small",  "t_720p")
+            .replace("t_cover_big",    "t_720p")
+            .replace("t_cover_big_2x", "t_720p")
         : null,
       release_date: d.first_release_date
         ? new Date(d.first_release_date * 1000).toISOString().split("T")[0]
