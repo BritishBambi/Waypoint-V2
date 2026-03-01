@@ -42,4 +42,5 @@ coverage
 *.tsbuildinfo
 
 # Claude-Generated Files
+.claude
 CLAUDE.md

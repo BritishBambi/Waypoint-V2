@@ -18,8 +18,12 @@ interface IgdbGame {
   first_release_date?: number; // Unix seconds
   rating?: number;        // 0–100 float
   rating_count?: number;  // number of ratings — used for popularity sort
-  category?: number;      // 0 = main_game, 4 = standalone_expansion, 8 = remake, 9 = remaster
+  // NOTE: IGDB never returns `category` in search or where-based responses —
+  // the field is always absent regardless of the game's actual category value.
+  // Use `version_parent` (editions) and `parent_game` (DLC/expansions) instead.
+  category?: number;       // never returned; kept for type completeness only
   version_parent?: number; // set on editions (Ultimate, Day One, etc.) — null on base games
+  parent_game?: number;    // set on DLC/expansions — null on standalone base games
 }
 
 // Module-level cache — persists for the lifetime of the function instance.
@@ -143,7 +147,7 @@ Deno.serve(async (req) => {
   // IGDB's `search` + `where` combination is unreliable in Apicalypse —
   // filtering is applied in TypeScript below instead.
   const apicalypseBody =
-    `fields name,slug,cover.url,summary,genres.name,platforms.name,first_release_date,rating,rating_count,category,version_parent; ` +
+    `fields name,slug,cover.url,summary,genres.name,platforms.name,first_release_date,rating,rating_count,category,version_parent,parent_game; ` +
     `search "${safeQuery}"; ` +
     `limit 30;`;
 
@@ -172,36 +176,25 @@ Deno.serve(async (req) => {
 
   const games: IgdbGame[] = await igdbRes.json();
 
-  // Log raw category/version_parent values before filtering to verify IGDB field shapes.
-  console.log(
-    `[igdb-search] query="${query}" raw results:`,
-    JSON.stringify(
-      games.map((g) => ({ id: g.id, name: g.name, category: g.category, version_parent: g.version_parent }))
-    )
-  );
-
-  // Only show main_game (category 0) in search results.
-  // IGDB omits category when it equals the default (0), so null/undefined → 0.
-  // Remakes, remasters, standalone expansions are excluded here — DLC can be
-  // browsed from the parent game's detail page instead.
-  const ALLOWED_CATEGORIES = new Set([0]);
+  // IGDB never populates the `category` field in API responses (confirmed by testing:
+  // it is always absent/undefined for every game regardless of actual category).
+  // Instead we rely on two relationship fields that ARE reliably returned:
+  //   version_parent — set on editions (Ultimate, Day One, Collector's, etc.)
+  //   parent_game    — set on DLC, expansions, updates (Phantom Liberty, Edgerunners Update, etc.)
+  // Any game with either field set is NOT a standalone base game and is excluded.
 
   // Adult content keywords — checked as substrings of the lowercased title.
   const ADULT_KEYWORDS = ["sex", "porn", "hentai", "eroge", "adult", "xxx"];
 
   const results = games
-    .filter((g) => ALLOWED_CATEGORIES.has(g.category ?? 0))
-    // Editions (Ultimate, Day One, Collector's, etc.) have a version_parent
-    // pointing to the base game. Exclude them — only base games in search.
+    // Exclude editions of other games (Ultimate Edition, Day One, etc.).
     .filter((g) => g.version_parent == null)
-    // Must have a cover — no cover art is a strong signal of a junk/test entry.
+    // Exclude DLC, expansions, updates — they have a parent_game reference.
+    .filter((g) => g.parent_game == null)
+    // Must have a cover — no cover is a strong signal of a junk/test entry.
     .filter((g) => !!g.cover?.url)
-    // Rating threshold: require ≥ 10 ratings, OR null (unrated) only when it's a
-    // main_game (category 0 / omitted) with a cover already confirmed above.
-    .filter((g) => {
-      if (g.rating_count == null) return (g.category ?? 0) === 0;
-      return g.rating_count >= 10;
-    })
+    // Rating threshold: require ≥ 10 ratings, OR unrated (null) is allowed.
+    .filter((g) => g.rating_count == null || g.rating_count >= 10)
     // Strip adult content by title keyword.
     .filter((g) => {
       const lower = g.name.toLowerCase();
