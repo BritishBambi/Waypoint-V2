@@ -601,11 +601,10 @@ function PopularGameCard({ game }: { game: GameStub }) {
 // The cover and avatar are separate <Link> elements (never nested) so both
 // are clickable independently — cover → game page, avatar → user profile.
 function ActivityCard({ item }: { item: FeedItem }) {
-  const { status, created_at, games, profiles, reviews } = item;
+  const { created_at, games, profiles, reviews } = item;
   if (!games || !profiles) return null;
 
   const rating = reviews?.rating ?? null;
-  const hasReview = reviews != null;
   const displayName = profiles.display_name ?? profiles.username;
   const date = formatDate(created_at);
   const coverUrl = igdbCover(games.cover_url, "t_720p");
@@ -672,44 +671,8 @@ function ActivityCard({ item }: { item: FeedItem }) {
         )}
       </Link>
 
-      {/* Below-cover row: icons, date */}
-      <div className="mt-1.5 flex items-center justify-between gap-1">
-        <div className="flex items-center gap-1">
-          {hasReview && (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="9"
-              height="9"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-zinc-500"
-              aria-label="Has review"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          )}
-          {status === "wishlist" && (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="9"
-              height="9"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-amber-400"
-              aria-label="Wishlisted"
-            >
-              <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" />
-            </svg>
-          )}
-        </div>
+      {/* Below-cover row: date */}
+      <div className="mt-1.5 text-right">
         <span className="text-[10px] text-zinc-600">{date}</span>
       </div>
 
