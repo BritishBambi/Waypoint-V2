@@ -155,33 +155,43 @@ export default async function GameDetailPage({ params }: Props) {
     <main className="min-h-screen">
 
       {/* ── Backdrop banner ───────────────────────────────────────────────── */}
-      <div className="relative h-[280px] w-full overflow-hidden">
-        {game.banner_url ? (
-          <Image
-            src={game.banner_url}
-            alt=""
-            fill
-            sizes="100vw"
-            quality={85}
-            className="object-cover object-top"
-            priority
-            aria-hidden="true"
-          />
-        ) : null}
-        {/* Single bottom gradient — image is sharp at top, dissolves at the bottom edge */}
-        <div
-          className="absolute inset-0"
+      {/* Constrained to content width so it aligns with the cover art edges */}
+      <div className="mx-auto max-w-6xl px-4">
+        <div className="relative h-[280px] overflow-hidden"
           style={{
-            background:
-              "linear-gradient(to bottom, rgba(13,13,26,0.3) 0%, rgba(13,13,26,0.5) 60%, rgba(13,13,26,1) 100%)",
+            WebkitMaskImage:
+              "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
+            maskImage:
+              "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
           }}
-        />
+        >
+          {game.banner_url ? (
+            <Image
+              src={game.banner_url}
+              alt=""
+              fill
+              sizes="(max-width: 1152px) 100vw, 1152px"
+              quality={85}
+              className="object-cover object-top"
+              priority
+              aria-hidden="true"
+            />
+          ) : null}
+          {/* Bottom gradient — image is visible at top, dissolves into the page background */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(to bottom, rgba(13,13,26,0.1) 0%, rgba(13,13,26,0.4) 30%, rgba(13,13,26,1) 100%)",
+            }}
+          />
+        </div>
       </div>
 
       {/* ── Hero — cover + info ───────────────────────────────────────────── */}
       {/* Title sits here on the dark page background, below the backdrop */}
       <section className="mx-auto max-w-6xl px-4 pb-10">
-        <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-10">
 
           {/* Cover image */}
           <div className="mx-auto shrink-0 md:mx-0">
@@ -203,7 +213,7 @@ export default async function GameDetailPage({ params }: Props) {
           </div>
 
           {/* Game info */}
-          <div className="flex flex-col">
+          <div className="flex flex-col md:pt-10">
             <h1 className="text-3xl font-bold leading-tight text-white sm:text-4xl">
               {game.title}
             </h1>
