@@ -98,6 +98,45 @@ export type Database = {
           },
         ]
       }
+      favourite_games: {
+        Row: {
+          created_at: string
+          game_id: number
+          id: string
+          position: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          game_id: number
+          id?: string
+          position: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          game_id?: number
+          id?: string
+          position?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favourite_games_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "favourite_games_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_logs: {
         Row: {
           created_at: string

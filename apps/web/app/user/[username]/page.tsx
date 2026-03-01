@@ -42,6 +42,11 @@ type ReviewWithGame = {
   games: GameStub | null;
 };
 
+type FavouriteSlot = {
+  position: number;
+  games: GameStub | null;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // Fixed palette for generated avatars — consistent per username via hash.
@@ -110,6 +115,7 @@ export default async function UserProfilePage({
     { data: rawLogs },
     { data: rawReviews },
     { data: { user } },
+    { data: rawFavourites },
   ] = await Promise.all([
     supabase
       .from("game_logs")
@@ -126,10 +132,26 @@ export default async function UserProfilePage({
       .order("published_at", { ascending: false }),
 
     supabase.auth.getUser(),
+
+    supabase
+      .from("favourite_games")
+      .select("position, games(id, slug, title, cover_url)")
+      .eq("user_id", profile.id)
+      .order("position"),
   ]);
 
-  const logs = (rawLogs ?? []) as unknown as LogWithGame[];
-  const reviews = (rawReviews ?? []) as unknown as ReviewWithGame[];
+  const logs      = (rawLogs      ?? []) as unknown as LogWithGame[];
+  const reviews   = (rawReviews   ?? []) as unknown as ReviewWithGame[];
+  const favRows   = (rawFavourites ?? []) as unknown as FavouriteSlot[];
+
+  // Build a 4-element array indexed by position (0 = position 1).
+  const favouriteSlots: (GameStub | null)[] = [null, null, null, null];
+  for (const row of favRows) {
+    if (row.games && row.position >= 1 && row.position <= 4) {
+      favouriteSlots[row.position - 1] = row.games;
+    }
+  }
+  const hasFavourites = favouriteSlots.some(Boolean);
 
   // ── 3. Derived values ───────────────────────────────────────────────────────
   const currentlyPlaying = logs.filter((l) => l.status === "playing");
@@ -198,6 +220,69 @@ export default async function UserProfilePage({
           </div>
         </div>
       </section>
+
+      {/* ── Favourite Games ──────────────────────────────────────────────────── */}
+      {/* Hidden entirely when the profile has no favourites and it's not the owner */}
+      {(hasFavourites || isOwnProfile) && (
+        <section className="mt-10">
+          <h2 className="mb-4 text-base font-semibold text-white">Favourite Games</h2>
+          <div className="grid grid-cols-4 gap-3 sm:w-fit">
+            {favouriteSlots.map((game, i) =>
+              game ? (
+                // Filled slot — cover with title tooltip on hover
+                <Link
+                  key={game.id}
+                  href={`/games/${game.slug}`}
+                  className="group relative block aspect-[2/3] w-full max-w-[110px] overflow-hidden rounded-lg bg-zinc-800"
+                  title={game.title}
+                >
+                  {game.cover_url ? (
+                    <Image
+                      src={igdbCover(game.cover_url, "t_720p")!}
+                      alt={game.title}
+                      fill
+                      sizes="110px"
+                      className="object-cover transition-transform duration-200 group-hover:scale-105"
+                    />
+                  ) : (
+                    <NoCover />
+                  )}
+                  {/* Title overlay on hover */}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    <p className="line-clamp-2 text-[10px] font-medium leading-snug text-white">
+                      {game.title}
+                    </p>
+                  </div>
+                </Link>
+              ) : isOwnProfile ? (
+                // Empty slot on own profile — "+" link to edit
+                <Link
+                  key={`empty-${i}`}
+                  href={`/user/${profile.username}/edit`}
+                  className="flex aspect-[2/3] w-full max-w-[110px] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-zinc-800 transition-colors hover:border-zinc-600"
+                  title="Add a favourite game"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    className="text-zinc-600"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                </Link>
+              ) : (
+                // Empty slot on someone else's profile — muted placeholder
+                <div
+                  key={`empty-${i}`}
+                  className="aspect-[2/3] w-full max-w-[110px] rounded-lg border border-dashed border-zinc-800"
+                  aria-hidden="true"
+                />
+              )
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ── Currently Playing ────────────────────────────────────────────────── */}
       {/* Only rendered when the user has at least one game with status = playing */}
