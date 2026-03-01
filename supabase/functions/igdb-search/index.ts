@@ -176,19 +176,23 @@ Deno.serve(async (req) => {
   // IGDB omits category when it equals the default (0 = main_game), so null/undefined → 0.
   const ALLOWED_CATEGORIES = new Set([0, 4, 8, 9]);
 
-  // Temporary title blacklist for the worst adult/spam entries that slip through.
-  const TITLE_BLACKLIST = [
-    "for cyberpunk sex",
-    "sex, drugs",
-    "bear, vodka",
-  ];
+  // Adult content keywords — checked as substrings of the lowercased title.
+  const ADULT_KEYWORDS = ["sex", "porn", "hentai", "eroge", "adult", "xxx"];
 
   const results = games
     .filter((g) => ALLOWED_CATEGORIES.has(g.category ?? 0))
-    .filter((g) => g.rating_count == null || g.rating_count >= 3)
+    // Must have a cover — no cover art is a strong signal of a junk/test entry.
+    .filter((g) => !!g.cover?.url)
+    // Rating threshold: require ≥ 10 ratings, OR null (unrated) only when it's a
+    // main_game (category 0 / omitted) with a cover already confirmed above.
+    .filter((g) => {
+      if (g.rating_count == null) return (g.category ?? 0) === 0;
+      return g.rating_count >= 10;
+    })
+    // Strip adult content by title keyword.
     .filter((g) => {
       const lower = g.name.toLowerCase();
-      return !TITLE_BLACKLIST.some((term) => lower.includes(term));
+      return !ADULT_KEYWORDS.some((kw) => lower.includes(kw));
     })
     .sort((a, b) => (b.rating_count ?? 0) - (a.rating_count ?? 0))
     .slice(0, 20)
