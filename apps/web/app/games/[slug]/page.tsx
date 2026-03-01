@@ -155,7 +155,7 @@ export default async function GameDetailPage({ params }: Props) {
     <main className="min-h-screen">
 
       {/* ── Backdrop banner ───────────────────────────────────────────────── */}
-      <div className="relative h-[160px] w-full overflow-hidden md:h-[280px]">
+      <div className="relative h-[280px] w-full overflow-hidden">
         {game.banner_url ? (
           <Image
             src={game.banner_url}
@@ -163,29 +163,25 @@ export default async function GameDetailPage({ params }: Props) {
             fill
             sizes="100vw"
             quality={85}
-            className="object-cover object-top opacity-50"
+            className="object-cover object-top"
             priority
             aria-hidden="true"
           />
         ) : null}
-        {/* Four-sided feather: fades all edges into the page background */}
+        {/* Single bottom gradient — image is sharp at top, dissolves at the bottom edge */}
         <div
           className="absolute inset-0"
           style={{
-            background: [
-              "linear-gradient(to bottom, transparent 40%, #0d0d1a 100%)",
-              "linear-gradient(to top,    transparent 40%, #0d0d1a 100%)",
-              "linear-gradient(to right,  transparent 40%, #0d0d1a 100%)",
-              "linear-gradient(to left,   transparent 40%, #0d0d1a 100%)",
-            ].join(", "),
+            background:
+              "linear-gradient(to bottom, rgba(13,13,26,0.3) 0%, rgba(13,13,26,0.5) 60%, rgba(13,13,26,1) 100%)",
           }}
         />
       </div>
 
       {/* ── Hero — cover + info ───────────────────────────────────────────── */}
+      {/* Title sits here on the dark page background, below the backdrop */}
       <section className="mx-auto max-w-6xl px-4 pb-10">
-        {/* Pull the cover art up to overlap the banner */}
-        <div className="flex flex-col gap-6 md:flex-row md:items-start md:-mt-24">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start">
 
           {/* Cover image */}
           <div className="mx-auto shrink-0 md:mx-0">
