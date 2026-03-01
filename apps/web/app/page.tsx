@@ -330,7 +330,8 @@ export default async function Home() {
                           src={igdbCover(games.cover_url, "t_720p")!}
                           alt={games.title}
                           fill
-                          sizes="(max-width: 640px) 50vw, 25vw"
+                          sizes="(max-width: 768px) 50vw, 25vw"
+                          quality={90}
                           className="object-cover transition-transform duration-200 group-hover:scale-105"
                         />
                       ) : (
@@ -515,10 +516,11 @@ export default async function Home() {
                   <div className="relative aspect-[2/3] w-28 overflow-hidden rounded-lg bg-zinc-800">
                     {game.cover_url ? (
                       <Image
-                        src={game.cover_url}
+                        src={game.cover_url.replace(/\/t_[^/]+\//, "/t_720p/")}
                         alt={game.title}
                         fill
                         sizes="112px"
+                        quality={90}
                         className="object-cover transition-transform duration-200 group-hover:scale-105"
                       />
                     ) : (
@@ -600,6 +602,7 @@ function ActivityCard({ item }: { item: FeedItem }) {
             alt={games.title}
             fill
             sizes="(max-width: 640px) 33vw, 17vw"
+            quality={90}
             className="object-cover transition-transform duration-200 group-hover:scale-105"
           />
         ) : (

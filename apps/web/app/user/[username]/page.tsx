@@ -293,7 +293,8 @@ export default async function UserProfilePage({
                       src={igdbCover(game.cover_url, "t_720p")!}
                       alt={game.title}
                       fill
-                      sizes="110px"
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                      quality={90}
                       className="object-cover transition-transform duration-200 group-hover:scale-105"
                     />
                   ) : (
@@ -352,10 +353,11 @@ export default async function UserProfilePage({
                   <div className="relative aspect-[2/3] w-28 overflow-hidden rounded-lg bg-zinc-800">
                     {games.cover_url ? (
                       <Image
-                        src={games.cover_url}
+                        src={games.cover_url.replace(/\/t_[^/]+\//, "/t_720p/")}
                         alt={games.title}
                         fill
                         sizes="112px"
+                        quality={90}
                         className="object-cover transition-transform duration-200 group-hover:scale-105"
                       />
                     ) : (
@@ -390,7 +392,8 @@ export default async function UserProfilePage({
                         src={igdbCover(games.cover_url, "t_720p")!}
                         alt={games.title}
                         fill
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                        quality={90}
                         className="object-cover transition-transform duration-200 group-hover:scale-105"
                       />
                     ) : (
@@ -475,10 +478,11 @@ function ReviewCard({ review }: { review: ReviewWithGame }) {
       <div className="relative h-[72px] w-12 shrink-0 overflow-hidden rounded-md bg-zinc-800">
         {games.cover_url ? (
           <Image
-            src={games.cover_url}
+            src={games.cover_url.replace(/\/t_[^/]+\//, "/t_720p/")}
             alt={games.title}
             fill
             sizes="48px"
+            quality={90}
             className="object-cover"
           />
         ) : (

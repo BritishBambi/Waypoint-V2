@@ -1,7 +1,7 @@
 // apps/web/lib/igdb.ts
 // Utilities for working with IGDB image URLs at render time.
 //
-// The database stores cover_url with the t_cover_big size token
+// The database stores cover_url with the t_720p size token
 // (set by the igdb-game-detail Edge Function). Swap it here at display
 // time rather than re-syncing the DB when we want a different resolution.
 //

@@ -52,10 +52,19 @@ async function getAccessToken(
 
 function transformGame(game: IgdbGame) {
   // IGDB cover URLs look like //images.igdb.com/igdb/image/upload/t_thumb/co1wyy.jpg
-  // Upgrade to cover_big and add https: protocol.
-  // The Next.js igdbCover() helper will upgrade further (e.g. to t_720p) on the client.
+  // Explicitly replace every known IGDB size token with t_720p (~480×720).
+  // Using an explicit multi-replace instead of a regex avoids missing tokens
+  // that contain digits (t_720p, t_1080p) if the URL is already partly upgraded.
   const coverUrl = game.cover?.url
-    ? `https:${game.cover.url.replace(/t_[a-z_]+/, "t_720p")}`
+    ? `https:${game.cover.url}`
+        .replace("t_thumb",          "t_720p")
+        .replace("t_micro",          "t_720p")
+        .replace("t_cover_small",    "t_720p")
+        .replace("t_cover_big",      "t_720p")
+        .replace("t_cover_big_2x",   "t_720p")
+        .replace("t_screenshot_med", "t_720p")
+        .replace("t_screenshot_big", "t_720p")
+        .replace("t_1080p",          "t_720p")
     : null;
 
   const igdbRating =

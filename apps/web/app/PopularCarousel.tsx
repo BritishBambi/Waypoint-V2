@@ -7,7 +7,6 @@
 import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { igdbCover } from "@/lib/igdb";
 import type { GameStub } from "./page";
 
 export function PopularCarousel({ games }: { games: GameStub[] }) {
@@ -107,9 +106,9 @@ export function PopularCarousel({ games }: { games: GameStub[] }) {
 // ─── PopularGameCard ──────────────────────────────────────────────────────────
 
 function PopularGameCard({ game }: { game: GameStub }) {
-  const coverUrl = igdbCover(game.cover_url, "t_720p");
+  const coverUrl = game.cover_url?.replace(/\/t_[^/]+\//, "/t_720p/") ?? null;
   const score =
-    game.igdb_rating != null ? (game.igdb_rating / 10).toFixed(1) : null;
+    game.igdb_rating != null ? (game.igdb_rating / 20).toFixed(1) : null;
 
   return (
     <Link href={`/games/${game.slug}`} className="group shrink-0">
@@ -119,7 +118,8 @@ function PopularGameCard({ game }: { game: GameStub }) {
             src={coverUrl}
             alt={game.title}
             fill
-            sizes="128px"
+            sizes="(max-width: 768px) 40vw, 15vw"
+            quality={90}
             className="object-cover transition-transform duration-200 group-hover:scale-105"
           />
         ) : (

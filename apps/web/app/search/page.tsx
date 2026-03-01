@@ -578,7 +578,8 @@ function GameCard({ game }: { game: GameSearchResult }) {
             src={igdbCover(game.cover_url, "t_720p")!}
             alt={game.title}
             fill
-            sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+            sizes="(max-width: 768px) 50vw, 20vw"
+            quality={90}
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
