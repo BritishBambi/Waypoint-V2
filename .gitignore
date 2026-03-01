@@ -40,3 +40,6 @@ coverage
 
 # TypeScript
 *.tsbuildinfo
+
+# Claude-Generated Files
+CLAUDE.md

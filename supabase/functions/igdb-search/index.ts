@@ -172,15 +172,20 @@ Deno.serve(async (req) => {
 
   const games: IgdbGame[] = await igdbRes.json();
 
-  // Acceptable categories: main_game (0), standalone_expansion (4), remake (8), remaster (9).
-  // IGDB omits category when it equals the default (0 = main_game), so null/undefined → 0.
-  const ALLOWED_CATEGORIES = new Set([0, 4, 8, 9]);
+  // Only show main_game (category 0) in search results.
+  // IGDB omits category when it equals the default (0), so null/undefined → 0.
+  // Remakes, remasters, standalone expansions are excluded here — DLC can be
+  // browsed from the parent game's detail page instead.
+  const ALLOWED_CATEGORIES = new Set([0]);
 
   // Adult content keywords — checked as substrings of the lowercased title.
   const ADULT_KEYWORDS = ["sex", "porn", "hentai", "eroge", "adult", "xxx"];
 
   const results = games
     .filter((g) => ALLOWED_CATEGORIES.has(g.category ?? 0))
+    // Editions (Ultimate, Day One, Collector's, etc.) have a version_parent
+    // pointing to the base game. Exclude them — only base games in search.
+    .filter((g) => g.version_parent == null)
     // Must have a cover — no cover art is a strong signal of a junk/test entry.
     .filter((g) => !!g.cover?.url)
     // Rating threshold: require ≥ 10 ratings, OR null (unrated) only when it's a

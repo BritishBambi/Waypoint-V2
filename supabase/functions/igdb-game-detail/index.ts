@@ -28,6 +28,16 @@ interface IgdbGame {
   category?: number;           // 0 = main game
 }
 
+interface IgdbDlc {
+  id: number;
+  name: string;
+  slug: string;
+  cover?: { url: string };
+  first_release_date?: number;
+  category?: number; // 1 = dlc, 2 = expansion, 4 = standalone_expansion
+  summary?: string;
+}
+
 // ─── Token cache ──────────────────────────────────────────────────────────────
 
 let tokenCache: TokenCache | null = null;
@@ -182,31 +192,66 @@ Deno.serve(async (req) => {
   }
 
   const game = transformGame(games[0]);
+  const gameId = games[0].id;
 
-  // Upsert the game into Supabase so that game_logs.game_id FK is satisfiable.
-  // The service-role key bypasses RLS (games table has no INSERT policy for users).
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  // Fetch DLC/expansions for this game and upsert to Supabase in parallel.
+  const dlcBody =
+    `fields name,slug,cover.url,first_release_date,category,summary; ` +
+    `where parent_game = ${gameId} & category = (1,2,4); ` +
+    `limit 10;`;
 
-  if (supabaseUrl && serviceRoleKey) {
-    const admin = createClient(supabaseUrl, serviceRoleKey);
+  const [dlcRes] = await Promise.all([
+    // DLC fetch — best-effort, non-fatal.
+    fetch("https://api.igdb.com/v4/games", {
+      method: "POST",
+      headers: {
+        "Client-ID": clientId,
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "text/plain",
+      },
+      body: dlcBody,
+    }).then((r) => r.ok ? r.json() as Promise<IgdbDlc[]> : Promise.resolve([])).catch(() => []),
 
-    // Destructure rating_count out — it's not a column in the games table.
-    const { rating_count: _rc, ...gameRow } = game;
+    // Supabase upsert — sync game into the games table for FK references.
+    (async () => {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseUrl || !serviceRoleKey) return;
 
-    const { error: upsertErr } = await admin
-      .from("games")
-      .upsert(
-        { ...gameRow, igdb_synced_at: new Date().toISOString() },
-        { onConflict: "id" }
-      );
+      const admin = createClient(supabaseUrl, serviceRoleKey);
+      // Destructure rating_count out — it's not a column in the games table.
+      const { rating_count: _rc, ...gameRow } = game;
 
-    if (upsertErr) {
-      // Non-fatal: return the game data even if the sync fails so the page
-      // still renders. The user will see an error if they try to log the game.
-      console.error("Supabase games upsert error:", upsertErr);
-    }
-  }
+      const { error: upsertErr } = await admin
+        .from("games")
+        .upsert(
+          { ...gameRow, igdb_synced_at: new Date().toISOString() },
+          { onConflict: "id" }
+        );
 
-  return json({ game });
+      if (upsertErr) {
+        // Non-fatal: log and continue — the page still renders.
+        console.error("Supabase games upsert error:", upsertErr);
+      }
+    })(),
+  ]);
+
+  // Transform DLC items into the client-facing shape.
+  const dlc = (dlcRes as IgdbDlc[])
+    .sort((a, b) => (a.first_release_date ?? 0) - (b.first_release_date ?? 0))
+    .map((d) => ({
+      id: d.id,
+      slug: d.slug,
+      title: d.name,
+      cover_url: d.cover?.url
+        ? `https:${d.cover.url.replace("t_thumb", "t_cover_big")}`
+        : null,
+      release_date: d.first_release_date
+        ? new Date(d.first_release_date * 1000).toISOString().split("T")[0]
+        : null,
+      category: d.category ?? 1,
+      summary: d.summary ?? null,
+    }));
+
+  return json({ game, dlc });
 });

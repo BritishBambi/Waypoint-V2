@@ -5,6 +5,7 @@
 // parallel before handing off interactive pieces to Client Components.
 
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Tables } from "@waypoint/types";
 import { createClient } from "@/lib/supabase/server";
@@ -30,6 +31,17 @@ export type ReviewWithAuthor = Tables<"reviews"> & {
 
 // Serialisable slice of a game_log row passed to Client Components.
 export type LogSummary = Pick<Tables<"game_logs">, "id" | "status">;
+
+// DLC / expansion item returned by igdb-game-detail alongside the main game.
+export type DlcItem = {
+  id: number;
+  slug: string;
+  title: string;
+  cover_url: string | null;
+  release_date: string | null;
+  category: number;
+  summary: string | null;
+};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -79,7 +91,7 @@ export default async function GameDetailPage({ params }: Props) {
     );
   }
 
-  const { game }: { game: GameDetail } = await fnRes.json();
+  const { game, dlc = [] }: { game: GameDetail; dlc: DlcItem[] } = await fnRes.json();
 
   if (!game) {
     notFound();
@@ -235,6 +247,20 @@ export default async function GameDetailPage({ params }: Props) {
         </div>
       </section>
 
+      {/* ── DLC & Expansions ─────────────────────────────────────────────────── */}
+      {dlc.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 pb-10">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-zinc-500">
+            DLC &amp; Expansions
+          </h2>
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {dlc.map((item) => (
+              <DlcCard key={item.id} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ── Reviews ──────────────────────────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-4 pb-16">
         <ReviewSection
@@ -291,5 +317,56 @@ function StarIcon({ className }: { className?: string }) {
     >
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
+  );
+}
+
+function DlcCard({ item }: { item: DlcItem }) {
+  const year = item.release_date ? item.release_date.slice(0, 4) : null;
+  const coverUrl = igdbCover(item.cover_url, "t_cover_big");
+
+  return (
+    <Link
+      href={`/games/${item.slug}`}
+      className="group flex w-[120px] shrink-0 flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-600"
+    >
+      <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-800">
+        {coverUrl ? (
+          <Image
+            src={coverUrl}
+            alt={item.title}
+            fill
+            sizes="120px"
+            className="object-cover transition-transform duration-200 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-zinc-600"
+              aria-hidden="true"
+            >
+              <rect x="2" y="6" width="20" height="12" rx="2" />
+              <path d="M6 12h4M8 10v4" />
+              <circle cx="15" cy="12" r="1" />
+              <circle cx="18" cy="12" r="1" />
+            </svg>
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col gap-0.5 p-2">
+        <p className="line-clamp-2 text-xs font-medium leading-snug text-white">
+          {item.title}
+        </p>
+        {year && <p className="text-xs text-zinc-500">{year}</p>}
+      </div>
+    </Link>
   );
 }
