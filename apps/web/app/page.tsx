@@ -89,40 +89,54 @@ export default async function Home() {
   // ── Logged-in state ───────────────────────────────────────────────────────
 
   if (user) {
-    const [{ data: profile }, { data: rawFeed }, { data: rawOwn }] =
-      await Promise.all([
-        supabase
-          .from("profiles")
-          .select("username, display_name")
-          .eq("id", user.id)
-          .single(),
+    // Phase 1: profile + followed user IDs + own library (all parallel).
+    const [profileRes, followRes, ownRes] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("username, display_name")
+        .eq("id", user.id)
+        .single(),
 
-        // Global feed: 10 most recent logs across all non-private profiles.
-        // game_logs RLS permits reading logs whose owner has is_private = false.
-        supabase
-          .from("game_logs")
-          .select(
-            "id, status, updated_at, " +
-              "games(id, slug, title, cover_url), " +
-              "profiles(username, display_name, avatar_url), " +
-              "reviews(rating)"
-          )
-          .order("updated_at", { ascending: false })
-          .limit(10),
+      // Fetch the IDs of everyone this user follows.
+      supabase
+        .from("follows")
+        .select("followee_id")
+        .eq("follower_id", user.id),
 
-        // Library shortcut: user's 4 most recently touched logs.
-        supabase
-          .from("game_logs")
-          .select("id, status, games(id, slug, title, cover_url)")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false })
-          .limit(4),
-      ]);
+      // Library shortcut: user's 4 most recently touched logs.
+      supabase
+        .from("game_logs")
+        .select("id, status, games(id, slug, title, cover_url)")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(4),
+    ]);
 
-    const username = profile?.username ?? "there";
+    // Explicit casts — PostgrestVersion 14.1 inference regression (same as profile page)
+    const profile = profileRes.data as { username: string; display_name: string | null } | null;
+    const followRows = followRes.data as Array<{ followee_id: string }> | null;
+    const followedIds = (followRows ?? []).map((r) => r.followee_id);
+
+    // Phase 2: fetch feed filtered to followed users + own activity.
+    // Always include the current user's own logs with the OR via IN array.
+    const feedUserIds = [user.id, ...followedIds];
+    const { data: rawFeed } = await supabase
+      .from("game_logs")
+      .select(
+        "id, status, updated_at, " +
+          "games(id, slug, title, cover_url), " +
+          "profiles(username, display_name, avatar_url), " +
+          "reviews(rating)"
+      )
+      .in("user_id", feedUserIds)
+      .order("updated_at", { ascending: false })
+      .limit(20);
+
+    const username    = profile?.username ?? "there";
     const displayName = profile?.display_name ?? username;
-    const feed = (rawFeed ?? []) as unknown as FeedItem[];
-    const ownLogs = (rawOwn ?? []) as unknown as OwnLog[];
+    const feed        = (rawFeed ?? []) as unknown as FeedItem[];
+    const ownLogs     = (ownRes.data ?? []) as unknown as OwnLog[];
+    const isFollowingNobody = followedIds.length === 0;
 
     return (
       <main className="mx-auto max-w-6xl px-4 py-10">
@@ -161,9 +175,25 @@ export default async function Home() {
             Recent Activity
           </h2>
           {feed.length === 0 ? (
-            <p className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-6 py-10 text-center text-sm text-zinc-500">
-              No activity yet — log some games to see the feed come alive.
-            </p>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-6 py-10 text-center">
+              {isFollowingNobody ? (
+                <>
+                  <p className="text-sm text-zinc-500">
+                    Your feed is empty — follow some people to see their activity.
+                  </p>
+                  <Link
+                    href="/users"
+                    className="mt-3 inline-block text-sm text-violet-400 transition-colors hover:text-violet-300"
+                  >
+                    Find people to follow →
+                  </Link>
+                </>
+              ) : (
+                <p className="text-sm text-zinc-500">
+                  No activity yet — log some games to see the feed come alive.
+                </p>
+              )}
+            </div>
           ) : (
             <div className="space-y-2">
               {feed.map((item) => (
