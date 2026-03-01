@@ -16,9 +16,10 @@ interface IgdbGame {
   genres?: Array<{ name: string }>;
   platforms?: Array<{ name: string }>;
   first_release_date?: number; // Unix seconds
-  rating?: number;       // 0–100 float
-  rating_count?: number; // number of ratings — used for popularity sort
-  category?: number;     // 0 = main game; see IGDB docs for other values
+  rating?: number;        // 0–100 float
+  rating_count?: number;  // number of ratings — used for popularity sort
+  category?: number;      // 0 = main_game, 4 = standalone_expansion, 8 = remake, 9 = remaster
+  version_parent?: number; // set on editions (Ultimate, Day One, etc.) — null on base games
 }
 
 // Module-level cache — persists for the lifetime of the function instance.
@@ -139,13 +140,18 @@ Deno.serve(async (req) => {
   // Escape double quotes in the query to prevent Apicalypse injection.
   const safeQuery = query.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
-  // Fetch a wider set so filtering still yields up to 10 results.
-  // 'search' + 'where'/'sort' interact unreliably in Apicalypse, so we
-  // apply category filtering and popularity sorting in TypeScript below.
+  // Fetch 30 from IGDB — the where clause reduces the pool, so we overfetch
+  // and trim to 20 after sorting by popularity in TypeScript.
+  //
+  // where filters:
+  //   category = (0,4,8,9)  — main_game, standalone_expansion, remake, remaster only
+  //   rating_count > 5      — removes unrated asset flips and test entries
+  //   version_parent = null — removes editions (Ultimate, Day One, Collector's, etc.)
   const apicalypseBody =
+    `fields name,slug,cover.url,summary,genres.name,platforms.name,first_release_date,rating,rating_count,category,version_parent; ` +
     `search "${safeQuery}"; ` +
-    `fields id,name,slug,cover.url,summary,genres.name,platforms.name,first_release_date,rating,rating_count,category; ` +
-    `limit 20;`;
+    `where category = (0,4,8,9) & rating_count > 5 & version_parent = null; ` +
+    `limit 30;`;
 
   // Query the IGDB API.
   let igdbRes: Response;
@@ -172,12 +178,11 @@ Deno.serve(async (req) => {
 
   const games: IgdbGame[] = await igdbRes.json();
 
-  // IGDB omits fields that equal their default value. category = 0 (main game)
-  // is the default, so it's absent from the response — treat null/undefined as 0.
+  // Sort by popularity so the most well-known match rises to the top,
+  // then take the top 20 and transform to the client-facing shape.
   const results = games
-    .filter((g) => g.category == null || g.category === 0)
     .sort((a, b) => (b.rating_count ?? 0) - (a.rating_count ?? 0))
-    .slice(0, 10)
+    .slice(0, 20)
     .map(transformGame);
 
   return json({ results });
