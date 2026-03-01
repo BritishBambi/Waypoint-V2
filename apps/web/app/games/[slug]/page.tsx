@@ -157,12 +157,19 @@ export default async function GameDetailPage({ params }: Props) {
       {/* ── Backdrop banner ───────────────────────────────────────────────── */}
       {/* Constrained to content width so it aligns with the cover art edges */}
       <div className="mx-auto max-w-6xl px-4">
-        <div className="relative h-[280px] overflow-hidden"
+        <div
+          className="relative h-[280px] overflow-hidden"
           style={{
-            WebkitMaskImage:
+            WebkitMaskImage: [
               "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
-            maskImage:
+              "linear-gradient(to bottom, black 0%, black 60%, transparent 100%)",
+            ].join(", "),
+            WebkitMaskComposite: "intersect",
+            maskImage: [
               "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
+              "linear-gradient(to bottom, black 0%, black 60%, transparent 100%)",
+            ].join(", "),
+            maskComposite: "intersect",
           }}
         >
           {game.banner_url ? (
@@ -177,14 +184,6 @@ export default async function GameDetailPage({ params }: Props) {
               aria-hidden="true"
             />
           ) : null}
-          {/* Bottom gradient — image is visible at top, dissolves into the page background */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "linear-gradient(to bottom, rgba(13,13,26,0.1) 0%, rgba(13,13,26,0.4) 30%, rgba(13,13,26,1) 100%)",
-            }}
-          />
         </div>
       </div>
 
