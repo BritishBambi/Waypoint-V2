@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 import type { Tables } from "@waypoint/types";
 import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
+import { FollowButton } from "./FollowButton";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
 // Supabase returns nested objects for FK joins. We define our own shapes and
@@ -102,43 +103,63 @@ export default async function UserProfilePage({
   // ── 1. Profile lookup ───────────────────────────────────────────────────────
   // maybeSingle() returns null (no error) when no row matches, so we can
   // notFound() cleanly without a Supabase error polluting the response.
-  const { data: profile } = await supabase
+  // Explicit cast: @supabase/ssr 0.5.x loses the row type when the generated
+  // Database type includes the __InternalSupabase marker (PostgrestVersion 14.1).
+  const { data: rawProfile } = await supabase
     .from("profiles")
     .select("*")
     .eq("username", username)
     .maybeSingle();
+  const profile = rawProfile as Tables<"profiles"> | null;
 
   if (!profile) notFound();
 
   // ── 2. Parallel data fetching ───────────────────────────────────────────────
-  const [
-    { data: rawLogs },
-    { data: rawReviews },
-    { data: { user } },
-    { data: rawFavourites },
-  ] = await Promise.all([
-    supabase
-      .from("game_logs")
-      .select("id, status, updated_at, games(id, slug, title, cover_url)")
-      .eq("user_id", profile.id)
-      .order("updated_at", { ascending: false }),
+  // Named result variables avoid TypeScript tuple-inference issues that arise
+  // when mixing head:true count queries with data queries in one destructure.
+  const [logsRes, reviewsRes, authRes, favsRes, followerRes, followingRes] =
+    await Promise.all([
+      supabase
+        .from("game_logs")
+        .select("id, status, updated_at, games(id, slug, title, cover_url)")
+        .eq("user_id", profile.id)
+        .order("updated_at", { ascending: false }),
 
-    supabase
-      .from("reviews")
-      .select("id, rating, body, published_at, games(id, slug, title, cover_url)")
-      .eq("user_id", profile.id)
-      .eq("is_draft", false)
-      .not("published_at", "is", null)
-      .order("published_at", { ascending: false }),
+      supabase
+        .from("reviews")
+        .select("id, rating, body, published_at, games(id, slug, title, cover_url)")
+        .eq("user_id", profile.id)
+        .eq("is_draft", false)
+        .not("published_at", "is", null)
+        .order("published_at", { ascending: false }),
 
-    supabase.auth.getUser(),
+      supabase.auth.getUser(),
 
-    supabase
-      .from("favourite_games")
-      .select("position, games(id, slug, title, cover_url)")
-      .eq("user_id", profile.id)
-      .order("position"),
-  ]);
+      supabase
+        .from("favourite_games")
+        .select("position, games(id, slug, title, cover_url)")
+        .eq("user_id", profile.id)
+        .order("position"),
+
+      // Count of users following this profile.
+      supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("followee_id", profile.id),
+
+      // Count of users this profile follows.
+      supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("follower_id", profile.id),
+    ]);
+
+  const rawLogs      = logsRes.data;
+  const rawReviews   = reviewsRes.data;
+  const { user }     = authRes.data;
+  const rawFavourites = favsRes.data;
+  const followerCount = followerRes.count ?? 0;
+  const followingCount = followingRes.count ?? 0;
 
   const logs      = (rawLogs      ?? []) as unknown as LogWithGame[];
   const reviews   = (rawReviews   ?? []) as unknown as ReviewWithGame[];
@@ -158,6 +179,19 @@ export default async function UserProfilePage({
   const totalPlayed = logs.filter((l) => l.status === "played").length;
   const isOwnProfile = user?.id === profile.id;
   const displayName = profile.display_name ?? profile.username;
+
+  // ── 4. Follow status (sequential — depends on isOwnProfile) ─────────────────
+  // Only query when viewing someone else's profile while logged in.
+  let isFollowing = false;
+  if (user && !isOwnProfile) {
+    const { data: followRow } = await supabase
+      .from("follows")
+      .select("follower_id")
+      .eq("follower_id", user.id)
+      .eq("followee_id", profile.id)
+      .maybeSingle();
+    isFollowing = !!followRow;
+  }
 
   // ── 4. Render ───────────────────────────────────────────────────────────────
   return (
@@ -194,13 +228,19 @@ export default async function UserProfilePage({
               <p className="text-sm text-zinc-500">@{profile.username}</p>
             </div>
 
-            {isOwnProfile && (
+            {isOwnProfile ? (
               <Link
                 href={`/user/${profile.username}/edit`}
                 className="rounded-lg border border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
               >
                 Edit Profile
               </Link>
+            ) : (
+              <FollowButton
+                profileId={profile.id}
+                currentUserId={user?.id ?? null}
+                initialIsFollowing={isFollowing}
+              />
             )}
           </div>
 
@@ -211,12 +251,24 @@ export default async function UserProfilePage({
           )}
 
           {/* Stats row */}
-          <div className="mt-4 flex items-center gap-6">
+          <div className="mt-4 flex flex-wrap items-center gap-5">
             <StatPill value={logs.length} label="Games Logged" />
             <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
             <StatPill value={totalPlayed} label="Played" />
             <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
             <StatPill value={reviews.length} label="Reviews" />
+            <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
+            <StatLinkPill
+              value={followerCount}
+              label="Followers"
+              href={`/user/${profile.username}/followers`}
+            />
+            <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
+            <StatLinkPill
+              value={followingCount}
+              label="Following"
+              href={`/user/${profile.username}/following`}
+            />
           </div>
         </div>
       </section>
@@ -392,6 +444,20 @@ function StatPill({ value, label }: { value: number; label: string }) {
       <p className="text-lg font-bold leading-none text-white">{value}</p>
       <p className="mt-0.5 text-xs text-zinc-500">{label}</p>
     </div>
+  );
+}
+
+// Clickable stat that links to a sub-page (e.g. followers list)
+function StatLinkPill({ value, label, href }: { value: number; label: string; href: string }) {
+  return (
+    <Link href={href} className="group">
+      <p className="text-lg font-bold leading-none text-white transition-colors group-hover:text-violet-400">
+        {value}
+      </p>
+      <p className="mt-0.5 text-xs text-zinc-500 transition-colors group-hover:text-zinc-400">
+        {label}
+      </p>
+    </Link>
   );
 }
 
