@@ -158,7 +158,7 @@ export default async function GameDetailPage({ params }: Props) {
       {/* Constrained to content width so it aligns with the cover art edges */}
       <div className="mx-auto max-w-6xl px-4">
         <div
-          className="relative h-[280px] overflow-hidden"
+          className="relative h-[380px] overflow-hidden"
           style={{
             WebkitMaskImage: [
               "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)",
@@ -179,7 +179,7 @@ export default async function GameDetailPage({ params }: Props) {
               fill
               sizes="(max-width: 1152px) 100vw, 1152px"
               quality={85}
-              className="object-cover object-center"
+              className="object-cover object-[center_30%]"
               priority
               aria-hidden="true"
             />
@@ -189,7 +189,7 @@ export default async function GameDetailPage({ params }: Props) {
 
       {/* ── Hero — cover + info ───────────────────────────────────────────── */}
       {/* Title sits here on the dark page background, below the backdrop */}
-      <section className="mx-auto max-w-6xl px-4 pb-10">
+      <section className="mx-auto max-w-6xl px-4 pb-10 mt-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-10">
 
           {/* Cover image */}
