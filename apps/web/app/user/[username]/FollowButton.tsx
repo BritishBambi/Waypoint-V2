@@ -46,7 +46,10 @@ export function FollowButton({ profileId, currentUserId, initialIsFollowing }: P
     } else {
       await supabase
         .from("follows")
-        .insert({ follower_id: currentUserId, followee_id: profileId });
+        // Double cast: postgrest-js resolves Insert<"follows"> as `never` due to
+        // a type-inference regression with the generated Database schema format.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert({ follower_id: currentUserId, followee_id: profileId } as any);
       setIsFollowing(true);
     }
 

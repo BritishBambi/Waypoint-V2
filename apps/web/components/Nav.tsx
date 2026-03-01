@@ -7,11 +7,13 @@ export async function Nav() {
 
   let username: string | null = null;
   if (user) {
-    const { data } = await supabase
+    const { data: rawData } = await supabase
       .from("profiles")
       .select("username")
       .eq("id", user.id)
       .single();
+    // Explicit cast — PostgrestVersion 14.1 inference regression
+    const data = rawData as { username: string } | null;
     username = data?.username ?? null;
   }
 
@@ -37,8 +39,8 @@ export async function Nav() {
           )}
 
           <Link
-            href="/search"
-            aria-label="Search games"
+            href="/search?tab=games"
+            aria-label="Search"
             className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
           >
             <svg
