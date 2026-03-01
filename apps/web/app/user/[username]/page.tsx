@@ -14,6 +14,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Tables } from "@waypoint/types";
 import { createClient } from "@/lib/supabase/server";
+import { igdbCover } from "@/lib/igdb";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
 // Supabase returns nested objects for FK joins. We define our own shapes and
@@ -249,7 +250,7 @@ export default async function UserProfilePage({
                   <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800">
                     {games.cover_url ? (
                       <Image
-                        src={games.cover_url}
+                        src={igdbCover(games.cover_url, "t_720p")!}
                         alt={games.title}
                         fill
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"

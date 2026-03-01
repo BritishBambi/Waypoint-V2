@@ -8,6 +8,7 @@ import { type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { igdbCover } from "@/lib/igdb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -203,7 +204,7 @@ export default async function Home() {
                     <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800">
                       {games.cover_url ? (
                         <Image
-                          src={games.cover_url}
+                          src={igdbCover(games.cover_url, "t_720p")!}
                           alt={games.title}
                           fill
                           sizes="(max-width: 640px) 50vw, 25vw"

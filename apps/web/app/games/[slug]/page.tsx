@@ -8,6 +8,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Tables } from "@waypoint/types";
 import { createClient } from "@/lib/supabase/server";
+import { igdbCover } from "@/lib/igdb";
 import { GameLogSection } from "./GameLogSection";
 import { ReviewSection } from "./ReviewSection";
 
@@ -129,10 +130,8 @@ export default async function GameDetailPage({ params }: Props) {
   // ── 3. Derived display values ───────────────────────────────────────────────
   const year = game.release_date ? game.release_date.slice(0, 4) : null;
   const platforms = game.platforms?.slice(0, 4).join(" · ") ?? null;
-  // Upgrade the stored t_cover_big URL to t_cover_big_2x (528×748) for retina.
-  const hdCoverUrl = game.cover_url
-    ? game.cover_url.replace("t_cover_big", "t_cover_big_2x")
-    : null;
+  // Upgrade the stored cover URL to t_720p (~480×720) for crisp display.
+  const hdCoverUrl = igdbCover(game.cover_url, "t_720p");
   const communityScore =
     game.igdb_rating != null
       ? (game.igdb_rating / 10).toFixed(1)

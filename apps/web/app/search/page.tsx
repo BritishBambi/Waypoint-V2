@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useGameSearch, type GameSearchResult } from "@waypoint/api-client";
+import { igdbCover } from "@/lib/igdb";
 
 // ─── Debounce ─────────────────────────────────────────────────────────────────
 
@@ -100,7 +101,7 @@ function GameCard({ game }: { game: GameSearchResult }) {
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-800">
         {game.cover_url ? (
           <Image
-            src={game.cover_url}
+            src={igdbCover(game.cover_url, "t_720p")!}
             alt={game.title}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
