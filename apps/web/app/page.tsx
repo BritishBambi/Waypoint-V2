@@ -1,7 +1,7 @@
 // apps/web/app/page.tsx
 // Homepage — two completely different layouts based on auth state.
 //
-// Logged-out: cinematic hero (game-cover backdrop) + features + trending + CTA
+// Logged-out: cinematic hero (full-bleed IGDB artwork backdrop) + features + trending + CTA
 // Logged-in:  welcome bar + global activity feed + personal library shortcut
 
 import { type ReactNode } from "react";
@@ -59,17 +59,6 @@ const STATUS_LABEL: Record<string, string> = {
   playing: "Playing", played: "Played", wishlist: "Wishlist",
   dropped: "Dropped", shelved: "Shelved",
 };
-
-// Queried by slug for the hero backdrop. Gracefully degrades to dark tiles
-// if the game hasn't been synced from IGDB yet (i.e. nobody has visited its page).
-const BACKDROP_SLUGS = [
-  "elden-ring",
-  "halo-3",
-  "the-last-of-us",
-  "red-dead-redemption-2",
-  "hollow-knight",
-  "god-of-war",
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -247,23 +236,13 @@ export default async function Home() {
 
   // ── Logged-out state ─────────────────────────────────────────────────────
 
-  const [{ data: backdropRaw }, { data: logsRaw }] = await Promise.all([
-    // Backdrop: fetch the 6 named games (cover URLs) if they've been synced.
-    supabase
-      .from("games")
-      .select("id, slug, title, cover_url")
-      .in("slug", BACKDROP_SLUGS),
-
-    // Trending: fetch a batch of recent logs to aggregate by game_id in JS.
-    // game_logs RLS allows reading logs from non-private profiles even for
-    // anonymous (unauthenticated) requests via the SSR client.
-    supabase
-      .from("game_logs")
-      .select("game_id, games(id, slug, title, cover_url)")
-      .limit(200),
-  ]);
-
-  const backdropGames = (backdropRaw ?? []) as GameStub[];
+  // Trending: fetch a batch of recent logs to aggregate by game_id in JS.
+  // game_logs RLS allows reading logs from non-private profiles even for
+  // anonymous (unauthenticated) requests via the SSR client.
+  const { data: logsRaw } = await supabase
+    .from("game_logs")
+    .select("game_id, games(id, slug, title, cover_url)")
+    .limit(200);
 
   // Aggregate: count how many logs each game has, sort descending, take top 6.
   type LogRow = { game_id: number; games: GameStub | null };
@@ -283,44 +262,59 @@ export default async function Home() {
     .slice(0, 6)
     .map((v) => v.game);
 
+  // Hero artwork: fetch a high-res landscape image for the most-logged game.
+  // This is a sequential fetch (depends on trendingGames), but the result is
+  // cached at the Next.js fetch layer for 1 hour so it only hits IGDB once.
+  let heroArtworkUrl: string | null = null;
+  const heroGame = trendingGames[0];
+  if (heroGame) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    try {
+      const artRes = await fetch(
+        `${supabaseUrl}/functions/v1/igdb-artwork`,
+        {
+          method: "POST",
+          headers: {
+            "apikey": anonKey,
+            "Authorization": `Bearer ${anonKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ game_id: heroGame.id }),
+          next: { revalidate: 3600 }, // cache artwork URL for 1 hour
+        }
+      );
+      if (artRes.ok) {
+        const data = await artRes.json();
+        heroArtworkUrl = data.artwork_url ?? null;
+      }
+    } catch {
+      // Non-fatal — fall back to the dark solid background.
+    }
+  }
+
   return (
     <>
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
       <section className="relative min-h-screen overflow-hidden bg-[#0D0D1A]">
 
-        {/* Game cover collage — tiled across the full section background */}
-        <div className="absolute inset-0 flex" aria-hidden="true">
-          {backdropGames.map((game) => (
-            <div key={game.id} className="relative flex-1">
-              {game.cover_url ? (
-                <Image
-                  src={game.cover_url}
-                  alt=""
-                  fill
-                  sizes="16vw"
-                  className="object-cover"
-                  priority
-                />
-              ) : (
-                <div className="h-full w-full bg-zinc-900" />
-              )}
-            </div>
-          ))}
-          {/* Dark tile fallbacks for any slugs not yet in the DB */}
-          {Array.from({ length: Math.max(0, 6 - backdropGames.length) }).map(
-            (_, i) => (
-              <div key={`tile-${i}`} className="flex-1 bg-zinc-900" />
-            )
-          )}
-        </div>
+        {/* Full-bleed IGDB artwork — only rendered when a URL was found */}
+        {heroArtworkUrl && (
+          <Image
+            src={heroArtworkUrl}
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover object-center"
+            priority
+            aria-hidden="true"
+          />
+        )}
 
-        {/* Soft blur over the covers */}
-        <div className="absolute inset-0 backdrop-blur-sm" aria-hidden="true" />
-
-        {/* Dark gradient — solid at the bottom so the features section below
-            reads as a continuation rather than an abrupt cut */}
+        {/* Dark gradient overlay — keeps text legible over any artwork,
+            and gives a solid base colour when no image is available */}
         <div
-          className="absolute inset-0 bg-gradient-to-b from-zinc-950/60 via-zinc-950/75 to-zinc-950"
+          className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/60 to-zinc-950"
           aria-hidden="true"
         />
 
