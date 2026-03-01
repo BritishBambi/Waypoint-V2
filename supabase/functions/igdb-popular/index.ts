@@ -55,7 +55,7 @@ function transformGame(game: IgdbGame) {
   // Upgrade to cover_big and add https: protocol.
   // The Next.js igdbCover() helper will upgrade further (e.g. to t_720p) on the client.
   const coverUrl = game.cover?.url
-    ? `https:${game.cover.url.replace("t_thumb", "t_cover_big")}`
+    ? `https:${game.cover.url.replace(/t_[a-z_]+/, "t_720p")}`
     : null;
 
   const igdbRating =

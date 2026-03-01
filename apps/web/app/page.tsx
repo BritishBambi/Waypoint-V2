@@ -9,10 +9,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
+import { PopularCarousel } from "./PopularCarousel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type GameStub = {
+export type GameStub = {
   id: number;
   slug: string;
   title: string;
@@ -255,11 +256,7 @@ export default async function Home() {
               </svg>
               Popular Right Now
             </h2>
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {popularGames.map((game) => (
-                <PopularGameCard key={game.id} game={game} />
-              ))}
-            </div>
+            <PopularCarousel games={popularGames} />
           </section>
         )}
 
@@ -574,50 +571,6 @@ function Feature({
       <h3 className="text-base font-semibold text-white">{heading}</h3>
       <p className="mt-1 text-sm text-zinc-400">{body}</p>
     </div>
-  );
-}
-
-// Card for the "Popular Right Now" horizontal row.
-function PopularGameCard({ game }: { game: GameStub }) {
-  const coverUrl = igdbCover(game.cover_url, "t_720p");
-  const score =
-    game.igdb_rating != null ? (game.igdb_rating / 10).toFixed(1) : null;
-
-  return (
-    <Link href={`/games/${game.slug}`} className="group shrink-0">
-      <div className="relative aspect-[2/3] w-32 overflow-hidden rounded-lg bg-zinc-800">
-        {coverUrl ? (
-          <Image
-            src={coverUrl}
-            alt={game.title}
-            fill
-            sizes="128px"
-            className="object-cover transition-transform duration-200 group-hover:scale-105"
-          />
-        ) : (
-          <NoCover />
-        )}
-        {score && (
-          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-black/70 px-1.5 py-0.5 backdrop-blur-sm">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="8"
-              height="8"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              className="text-yellow-400"
-              aria-hidden="true"
-            >
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-            <span className="text-[10px] font-medium text-yellow-400">{score}</span>
-          </div>
-        )}
-      </div>
-      <p className="mt-1.5 w-32 line-clamp-1 text-xs text-zinc-400 transition-colors group-hover:text-white">
-        {game.title}
-      </p>
-    </Link>
   );
 }
 
