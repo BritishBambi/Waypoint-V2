@@ -179,7 +179,7 @@ export default async function GameDetailPage({ params }: Props) {
               fill
               sizes="(max-width: 1152px) 100vw, 1152px"
               quality={85}
-              className="object-cover object-top"
+              className="object-cover object-center"
               priority
               aria-hidden="true"
             />

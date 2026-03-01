@@ -93,10 +93,12 @@ function transformGame(game: IgdbGame) {
       : null;
 
   // Pick the best landscape image for the backdrop banner.
-  // Require aspect ratio >= 1.5 (3:2) — filters out near-square title cards
-  // that technically pass width > height but look wrong in a wide banner.
+  // Ratio >= 1.6 skips near-square title cards; height >= 500 skips short
+  // banner-style logo art (e.g. 1920×200) that is wide but has no real content.
   // Falls back to screenshots[0] which is almost always 1920×1080 (16:9).
-  const landscapeArt = game.artworks?.find((a) => a.width / a.height >= 1.5);
+  const landscapeArt = game.artworks?.find(
+    (a) => a.width / a.height >= 1.6 && a.height >= 500
+  );
   const backdrop = landscapeArt ?? game.screenshots?.[0] ?? null;
   const banner_url = backdrop
     ? `https:${backdrop.url}`.replace(/\/t_[^/]+\//, "/t_1080p/")
