@@ -16,9 +16,10 @@ import { ReviewSection } from "./ReviewSection";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 // Shape returned by the igdb-game-detail Edge Function.
-// Matches the games table minus igdb_synced_at, plus rating_count (IGDB-only).
+// Matches the games table minus igdb_synced_at, plus IGDB-only UI fields.
 export type GameDetail = Omit<Tables<"games">, "igdb_synced_at"> & {
   rating_count: number | null;
+  banner_url: string | null;
 };
 
 // Review row joined with the author's public profile columns.
@@ -146,26 +147,56 @@ export default async function GameDetailPage({ params }: Props) {
   const hdCoverUrl = igdbCover(game.cover_url, "t_720p");
   const communityScore =
     game.igdb_rating != null
-      ? (game.igdb_rating / 10).toFixed(1)
+      ? (game.igdb_rating / 20).toFixed(1)
       : null;
 
   // ── 4. Render ───────────────────────────────────────────────────────────────
   return (
     <main className="min-h-screen">
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-4 py-12">
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-[240px_1fr]">
+      {/* ── Backdrop banner ───────────────────────────────────────────────── */}
+      <div className="relative h-[160px] w-full overflow-hidden md:h-[280px]">
+        {game.banner_url ? (
+          <Image
+            src={game.banner_url}
+            alt=""
+            fill
+            sizes="100vw"
+            quality={85}
+            className="object-cover object-top opacity-50"
+            priority
+            aria-hidden="true"
+          />
+        ) : null}
+        {/* Four-sided feather: fades all edges into the page background */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background: [
+              "linear-gradient(to bottom, transparent 40%, #0d0d1a 100%)",
+              "linear-gradient(to top,    transparent 40%, #0d0d1a 100%)",
+              "linear-gradient(to right,  transparent 40%, #0d0d1a 100%)",
+              "linear-gradient(to left,   transparent 40%, #0d0d1a 100%)",
+            ].join(", "),
+          }}
+        />
+      </div>
+
+      {/* ── Hero — cover + info ───────────────────────────────────────────── */}
+      <section className="mx-auto max-w-6xl px-4 pb-10">
+        {/* Pull the cover art up to overlap the banner */}
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:-mt-24">
 
           {/* Cover image */}
-          <div className="mx-auto w-full max-w-[240px] md:mx-0">
-            <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-zinc-800 shadow-2xl shadow-black/60">
+          <div className="mx-auto shrink-0 md:mx-0">
+            <div className="relative aspect-[2/3] w-[160px] overflow-hidden rounded-xl bg-zinc-800 shadow-2xl shadow-black/60 md:w-[200px]">
               {hdCoverUrl ? (
                 <Image
                   src={hdCoverUrl}
                   alt={`${game.title} cover`}
                   fill
-                  sizes="240px"
+                  sizes="(max-width: 768px) 50vw, 200px"
+                  quality={90}
                   className="object-cover"
                   priority
                 />
@@ -210,7 +241,7 @@ export default async function GameDetailPage({ params }: Props) {
                   {communityScore}
                 </span>
                 <span className="text-sm text-zinc-500">
-                  / 10 community score
+                  / 5 community score
                   {game.rating_count
                     ? ` · ${game.rating_count.toLocaleString()} ratings`
                     : ""}
@@ -322,7 +353,7 @@ function StarIcon({ className }: { className?: string }) {
 
 function DlcCard({ item }: { item: DlcItem }) {
   const year = item.release_date ? item.release_date.slice(0, 4) : null;
-  const coverUrl = igdbCover(item.cover_url, "t_cover_big");
+  const coverUrl = igdbCover(item.cover_url, "t_720p");
 
   return (
     <Link
@@ -336,6 +367,7 @@ function DlcCard({ item }: { item: DlcItem }) {
             alt={item.title}
             fill
             sizes="120px"
+            quality={90}
             className="object-cover transition-transform duration-200 group-hover:scale-105"
           />
         ) : (
