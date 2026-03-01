@@ -86,10 +86,12 @@ export default async function Home() {
   // ── Logged-in state ───────────────────────────────────────────────────────
 
   if (user) {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const anonKey    = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-    // Phase 1: profile, follows, own library, and recent platform-wide logs (all parallel).
-    const [profileRes, followRes, ownRes, popularLogsRes] = await Promise.all([
+    // Phase 1: profile, follows, own library, and IGDB popular games (all parallel).
+    // igdb-popular is tried first; Waypoint game_logs is used only as a fallback.
+    const [profileRes, followRes, ownRes, igdbPopularGames] = await Promise.all([
       supabase
         .from("profiles")
         .select("username, display_name")
@@ -109,51 +111,73 @@ export default async function Home() {
         .order("updated_at", { ascending: false })
         .limit(4),
 
-      // Platform-wide recent logs (last 30 days) for "Popular Right Now".
-      supabase
+      // IGDB global popularity — most followed base games with ≥500 ratings.
+      fetch(`${supabaseUrl}/functions/v1/igdb-popular`, {
+        method: "POST",
+        headers: {
+          "apikey": anonKey,
+          "Authorization": `Bearer ${anonKey}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      })
+        .then(async (res) => {
+          if (!res.ok) return null;
+          const data = await res.json();
+          return (data.results as GameStub[]) ?? null;
+        })
+        .catch(() => null),
+    ]);
+
+    const profile     = profileRes.data as { username: string; display_name: string | null } | null;
+    const followRows  = followRes.data as Array<{ followee_id: string }> | null;
+    const followedIds = (followRows ?? []).map((r) => r.followee_id);
+
+    // Use IGDB results if available; otherwise fall back to most-logged on Waypoint.
+    let popularGames: GameStub[] = igdbPopularGames ?? [];
+
+    if (popularGames.length < 4) {
+      // Fallback: aggregate game popularity from Waypoint game_logs.
+      type PopularRow = { game_id: number; games: GameStub | null };
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: recentRaw } = await supabase
         .from("game_logs")
         .select("game_id, games(id, slug, title, cover_url, igdb_rating)")
         .gte("created_at", thirtyDaysAgo)
-        .limit(300),
-    ]);
-
-    const profile    = profileRes.data as { username: string; display_name: string | null } | null;
-    const followRows = followRes.data as Array<{ followee_id: string }> | null;
-    const followedIds = (followRows ?? []).map((r) => r.followee_id);
-
-    // Aggregate game popularity from last 30 days, sort by log count.
-    type PopularRow = { game_id: number; games: GameStub | null };
-    const recentRows = (popularLogsRes.data ?? []) as unknown as PopularRow[];
-    const popularMap = new Map<number, { count: number; game: GameStub }>();
-    for (const row of recentRows) {
-      if (!row.games) continue;
-      const entry = popularMap.get(row.game_id);
-      if (entry) entry.count++;
-      else popularMap.set(row.game_id, { count: 1, game: row.games });
-    }
-    let popularGames = [...popularMap.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8)
-      .map((v) => v.game);
-
-    // Fallback to all-time most logged if fewer than 4 games logged recently.
-    if (popularGames.length < 4) {
-      const { data: allTimeRaw } = await supabase
-        .from("game_logs")
-        .select("game_id, games(id, slug, title, cover_url, igdb_rating)")
         .limit(300);
-      const allTimeRows = (allTimeRaw ?? []) as unknown as PopularRow[];
-      const allTimeMap = new Map<number, { count: number; game: GameStub }>();
-      for (const row of allTimeRows) {
+      const recentRows = (recentRaw ?? []) as unknown as PopularRow[];
+      const popularMap = new Map<number, { count: number; game: GameStub }>();
+      for (const row of recentRows) {
         if (!row.games) continue;
-        const entry = allTimeMap.get(row.game_id);
+        const entry = popularMap.get(row.game_id);
         if (entry) entry.count++;
-        else allTimeMap.set(row.game_id, { count: 1, game: row.games });
+        else popularMap.set(row.game_id, { count: 1, game: row.games });
       }
-      popularGames = [...allTimeMap.values()]
+      popularGames = [...popularMap.values()]
         .sort((a, b) => b.count - a.count)
         .slice(0, 8)
         .map((v) => v.game);
+
+      // If still sparse, widen to all-time logs.
+      if (popularGames.length < 4) {
+        const { data: allTimeRaw } = await supabase
+          .from("game_logs")
+          .select("game_id, games(id, slug, title, cover_url, igdb_rating)")
+          .limit(300);
+        const allTimeRows = (allTimeRaw ?? []) as unknown as PopularRow[];
+        const allTimeMap = new Map<number, { count: number; game: GameStub }>();
+        for (const row of allTimeRows) {
+          if (!row.games) continue;
+          const entry = allTimeMap.get(row.game_id);
+          if (entry) entry.count++;
+          else allTimeMap.set(row.game_id, { count: 1, game: row.games });
+        }
+        popularGames = [...allTimeMap.values()]
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 8)
+          .map((v) => v.game);
+      }
     }
 
     // Phase 2: feed filtered to followed users only (own activity is in "Your Library" below).
