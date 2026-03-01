@@ -26,6 +26,11 @@ interface IgdbGame {
   rating?: number;             // 0–100 float
   rating_count?: number;
   category?: number;           // 0 = main game
+  dlcs?: number[];             // IDs of DLC entries linked to this game
+  expansions?: number[];       // IDs of expansion entries linked to this game
+  standalone_expansions?: number[]; // IDs of standalone expansions
+  remakes?: number[];
+  remasters?: number[];
 }
 
 interface IgdbDlc {
@@ -156,11 +161,14 @@ Deno.serve(async (req) => {
   }
 
   // Use a where clause — reliable for exact-field lookups (unlike 'search').
+  // Include the dlcs/expansions/standalone_expansions arrays so we can fetch
+  // DLC details by ID rather than relying on the parent_game back-reference.
   const safeSlug = slug.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   const apicalypseBody =
     `where slug = "${safeSlug}"; ` +
     `fields id,name,slug,cover.url,summary,genres.name,platforms.name,` +
-    `first_release_date,rating,rating_count,category; ` +
+    `first_release_date,rating,rating_count,category,` +
+    `dlcs,expansions,standalone_expansions; ` +
     `limit 1;`;
 
   let igdbRes: Response;
@@ -191,26 +199,40 @@ Deno.serve(async (req) => {
     return json({ error: "Game not found" }, 404);
   }
 
-  const game = transformGame(games[0]);
-  const gameId = games[0].id;
+  const rawGame = games[0];
+  const game = transformGame(rawGame);
 
-  // Fetch DLC/expansions for this game and upsert to Supabase in parallel.
-  const dlcBody =
-    `fields name,slug,cover.url,first_release_date,category,summary; ` +
-    `where parent_game = ${gameId} & category = (1,2,4); ` +
-    `limit 10;`;
+  // Collect all DLC/expansion IDs from the game's own arrays.
+  // This is more reliable than querying parent_game back-references.
+  const dlcIds = [
+    ...(rawGame.dlcs ?? []),
+    ...(rawGame.expansions ?? []),
+    ...(rawGame.standalone_expansions ?? []),
+  ];
+
+  console.log(`[igdb-game-detail] slug=${slug} igdb_id=${rawGame.id} dlcIds=${JSON.stringify(dlcIds)}`);
 
   const [dlcRes] = await Promise.all([
-    // DLC fetch — best-effort, non-fatal.
-    fetch("https://api.igdb.com/v4/games", {
-      method: "POST",
-      headers: {
-        "Client-ID": clientId,
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "text/plain",
-      },
-      body: dlcBody,
-    }).then((r) => r.ok ? r.json() as Promise<IgdbDlc[]> : Promise.resolve([])).catch(() => []),
+    // DLC fetch — best-effort, non-fatal. Skip if no IDs.
+    dlcIds.length > 0
+      ? fetch("https://api.igdb.com/v4/games", {
+          method: "POST",
+          headers: {
+            "Client-ID": clientId,
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "text/plain",
+          },
+          body:
+            `fields name,slug,cover.url,first_release_date,category,summary; ` +
+            `where id = (${dlcIds.join(",")}); ` +
+            `limit 15;`,
+        }).then(async (r) => {
+            const raw = await r.text();
+            console.log(`[igdb-game-detail] DLC response status=${r.status} body=${raw.slice(0, 500)}`);
+            if (!r.ok) return [];
+            return JSON.parse(raw) as IgdbDlc[];
+          }).catch((err) => { console.error("[igdb-game-detail] DLC fetch error:", err); return []; })
+      : Promise.resolve([]),
 
     // Supabase upsert — sync game into the games table for FK references.
     (async () => {

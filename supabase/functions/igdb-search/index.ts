@@ -172,6 +172,14 @@ Deno.serve(async (req) => {
 
   const games: IgdbGame[] = await igdbRes.json();
 
+  // Log raw category/version_parent values before filtering to verify IGDB field shapes.
+  console.log(
+    `[igdb-search] query="${query}" raw results:`,
+    JSON.stringify(
+      games.map((g) => ({ id: g.id, name: g.name, category: g.category, version_parent: g.version_parent }))
+    )
+  );
+
   // Only show main_game (category 0) in search results.
   // IGDB omits category when it equals the default (0), so null/undefined → 0.
   // Remakes, remasters, standalone expansions are excluded here — DLC can be
