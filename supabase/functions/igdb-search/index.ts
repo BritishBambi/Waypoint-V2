@@ -140,17 +140,11 @@ Deno.serve(async (req) => {
   // Escape double quotes in the query to prevent Apicalypse injection.
   const safeQuery = query.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
-  // Fetch 30 from IGDB — the where clause reduces the pool, so we overfetch
-  // and trim to 20 after sorting by popularity in TypeScript.
-  //
-  // where filters:
-  //   category = (0,4,8,9)  — main_game, standalone_expansion, remake, remaster only
-  //   rating_count > 5      — removes unrated asset flips and test entries
-  //   version_parent = null — removes editions (Ultimate, Day One, Collector's, etc.)
+  // IGDB's `search` + `where` combination is unreliable in Apicalypse —
+  // filtering is applied in TypeScript below instead.
   const apicalypseBody =
     `fields name,slug,cover.url,summary,genres.name,platforms.name,first_release_date,rating,rating_count,category,version_parent; ` +
     `search "${safeQuery}"; ` +
-    `where category = (0,4,8,9) & rating_count > 5 & version_parent = null; ` +
     `limit 30;`;
 
   // Query the IGDB API.
@@ -178,9 +172,24 @@ Deno.serve(async (req) => {
 
   const games: IgdbGame[] = await igdbRes.json();
 
-  // Sort by popularity so the most well-known match rises to the top,
-  // then take the top 20 and transform to the client-facing shape.
+  // Acceptable categories: main_game (0), standalone_expansion (4), remake (8), remaster (9).
+  // IGDB omits category when it equals the default (0 = main_game), so null/undefined → 0.
+  const ALLOWED_CATEGORIES = new Set([0, 4, 8, 9]);
+
+  // Temporary title blacklist for the worst adult/spam entries that slip through.
+  const TITLE_BLACKLIST = [
+    "for cyberpunk sex",
+    "sex, drugs",
+    "bear, vodka",
+  ];
+
   const results = games
+    .filter((g) => ALLOWED_CATEGORIES.has(g.category ?? 0))
+    .filter((g) => g.rating_count == null || g.rating_count >= 3)
+    .filter((g) => {
+      const lower = g.name.toLowerCase();
+      return !TITLE_BLACKLIST.some((term) => lower.includes(term));
+    })
     .sort((a, b) => (b.rating_count ?? 0) - (a.rating_count ?? 0))
     .slice(0, 20)
     .map(transformGame);
