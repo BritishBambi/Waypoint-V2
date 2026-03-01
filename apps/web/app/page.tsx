@@ -672,24 +672,9 @@ function ActivityCard({ item }: { item: FeedItem }) {
         )}
       </Link>
 
-      {/* Below-cover row: rating, icons, date */}
+      {/* Below-cover row: icons, date */}
       <div className="mt-1.5 flex items-center justify-between gap-1">
         <div className="flex items-center gap-1">
-          {rating !== null && (
-            <span className="flex items-center gap-0.5 text-[10px] text-yellow-400">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="8"
-                height="8"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-              {rating}
-            </span>
-          )}
           {hasReview && (
             <svg
               xmlns="http://www.w3.org/2000/svg"
