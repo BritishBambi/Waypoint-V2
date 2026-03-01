@@ -21,8 +21,9 @@ type GameStub = {
 };
 
 // game_logs joined with games (many-to-one), profiles (many-to-one), and
-// reviews (one-to-many from the FK on reviews.log_id → game_logs.id — Supabase
-// returns an array even though there can be at most one review per log).
+// reviews (one-to-one via UNIQUE FK on reviews.log_id → game_logs.id).
+// PostgREST 14+ returns one-to-one embeds as a single object (or null),
+// NOT as an array — so reviews is { rating: number | null } | null.
 type FeedItem = {
   id: string;
   status: string;
@@ -34,7 +35,7 @@ type FeedItem = {
     display_name: string | null;
     avatar_url: string | null;
   } | null;
-  reviews: Array<{ rating: number | null }>;
+  reviews: { rating: number | null } | null;
 };
 
 type OwnLog = {
@@ -164,7 +165,7 @@ export default async function Home() {
               "id, status, created_at, updated_at, " +
                 "games(id, slug, title, cover_url), " +
                 "profiles(username, display_name, avatar_url), " +
-                "reviews(rating)"
+                "reviews!log_id(rating)"
             )
             .in("user_id", followedIds)
             .order("updated_at", { ascending: false })
@@ -603,8 +604,8 @@ function ActivityCard({ item }: { item: FeedItem }) {
   const { status, created_at, games, profiles, reviews } = item;
   if (!games || !profiles) return null;
 
-  const rating = reviews[0]?.rating ?? null;
-  const hasReview = reviews.length > 0;
+  const rating = reviews?.rating ?? null;
+  const hasReview = reviews != null;
   const displayName = profiles.display_name ?? profiles.username;
   const date = formatDate(created_at);
   const coverUrl = igdbCover(games.cover_url, "t_720p");
