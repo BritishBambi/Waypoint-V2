@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git init)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(pnpm --filter @waypoint/web add @hello-pangea/dnd)"
     ]
   }
 }

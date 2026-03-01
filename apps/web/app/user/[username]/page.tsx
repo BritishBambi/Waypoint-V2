@@ -226,14 +226,14 @@ export default async function UserProfilePage({
       {(hasFavourites || isOwnProfile) && (
         <section className="mt-10">
           <h2 className="mb-4 text-base font-semibold text-white">Favourite Games</h2>
-          <div className="grid grid-cols-4 gap-3 sm:w-fit">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:w-fit">
             {favouriteSlots.map((game, i) =>
               game ? (
                 // Filled slot — cover with title tooltip on hover
                 <Link
                   key={game.id}
                   href={`/games/${game.slug}`}
-                  className="group relative block aspect-[2/3] w-full max-w-[110px] overflow-hidden rounded-lg bg-zinc-800"
+                  className="group relative w-[110px] aspect-[2/3] overflow-hidden rounded-lg bg-zinc-800"
                   title={game.title}
                 >
                   {game.cover_url ? (

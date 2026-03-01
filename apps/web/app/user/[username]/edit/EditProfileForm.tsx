@@ -260,6 +260,30 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     }
 
     // ── 3. Sync favourite games (delete-all + reinsert) ────────────────────────
+    // First, upsert any games that don't already exist in the games table.
+    // Use the upsert_games() RPC function which runs with elevated privileges.
+    const gamesToUpsert = slots
+      .filter((game): game is FavGame => game !== null)
+      .map((game) => ({
+        id: game.id,
+        slug: game.slug,
+        title: game.title,
+        cover_url: game.cover_url,
+      }));
+
+    if (gamesToUpsert.length > 0) {
+      const { data, error: upsertErr } = await supabase.rpc("upsert_games", {
+        game_data: gamesToUpsert,
+      });
+      if (upsertErr || !data?.[0]?.success) {
+        const errMsg = upsertErr?.message || data?.[0]?.error || "Unknown error";
+        setErrors({ _form: `Failed to sync games: ${errMsg}` });
+        setSaving(false);
+        return;
+      }
+    }
+
+    // Now delete old favourite_games entries and insert new ones.
     const { error: delErr } = await supabase
       .from("favourite_games")
       .delete()
