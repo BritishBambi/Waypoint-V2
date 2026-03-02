@@ -189,36 +189,38 @@ Deno.serve(async (req) => {
   // Normalised query used for title-match boosting in the sort below.
   const queryLower = query.toLowerCase();
 
+  // Games that should always appear regardless of the filter rules above.
+  // IGDB occasionally miscategorises or buries canonical entries — this list
+  // ensures they are always surfaced when present in a query's raw results or
+  // can be fetched directly by ID.
+  //   121    — Minecraft: Java Edition (IGDB search doesn't return it in top 50)
+  //   135400 — Minecraft (Bedrock Edition) (filtered out due to parent_game=121)
+  const ALLOWLIST_IDS = [121, 135400];
+
   // ── Step 1: Filter ─────────────────────────────────────────────────────────
   const filtered: IgdbGame[] = games
-    // Exclude editions of other games (Ultimate Edition, Day One, etc.).
-    .filter((g) => g.version_parent == null)
-    // Exclude DLC, expansions, updates — they have a parent_game reference.
-    // Exception: allow entries with rating_count >= 200 — these are substantial
-    // standalone releases that IGDB has miscategorised as children of another
-    // entry (e.g. Minecraft Bedrock Edition has parent_game pointing to Java Ed).
-    .filter((g) => g.parent_game == null || (g.rating_count != null && g.rating_count >= 200))
-    // Must have a cover — no cover is a strong signal of a junk/test entry.
-    .filter((g) => !!g.cover?.url)
-    // Rating threshold: require ≥ 10 ratings, OR unrated (null) is allowed.
-    .filter((g) => g.rating_count == null || g.rating_count >= 10)
-    // Strip adult content by title keyword.
-    .filter((g) => {
-      const lower = g.name.toLowerCase();
-      return !ADULT_KEYWORDS.some((kw) => lower.includes(kw));
-    });
+    // Allowlisted IDs bypass all filters — we unconditionally want them.
+    .filter((g) => ALLOWLIST_IDS.includes(g.id) || (
+      // Exclude editions of other games (Ultimate Edition, Day One, etc.).
+      g.version_parent == null &&
+      // Exclude DLC, expansions, updates — they have a parent_game reference.
+      g.parent_game == null &&
+      // Must have a cover — no cover is a strong signal of a junk/test entry.
+      !!g.cover?.url &&
+      // Rating threshold: require ≥ 10 ratings, OR unrated (null) is allowed.
+      (g.rating_count == null || g.rating_count >= 10) &&
+      // Strip adult content by title keyword.
+      !ADULT_KEYWORDS.some((kw) => g.name.toLowerCase().includes(kw))
+    ));
 
-  // ── Step 2: Resolve parent games for exception entries ─────────────────────
-  // Entries that passed via the parent_game exception are ports/variants that
-  // IGDB has linked to a canonical base game. Fetch that base game and swap it
-  // in so the canonical entry appears instead of the variant (e.g. replace
-  // Minecraft Bedrock Edition with the canonical Java/original Minecraft entry).
-  const exceptionEntries = filtered.filter((g) => g.parent_game != null);
-  if (exceptionEntries.length > 0) {
-    const parentIds = [...new Set(exceptionEntries.map((g) => g.parent_game!))];
-    const existingIds = new Set(filtered.map((g) => g.id));
+  // ── Step 2: Fetch allowlisted IDs missing from raw search results ───────────
+  // IGDB search doesn't return every game — fetch any allowlisted entries that
+  // didn't appear in the raw results so they can still be injected.
+  const rawIds = new Set(games.map((g) => g.id));
+  const toFetch = ALLOWLIST_IDS.filter((id) => !rawIds.has(id));
+  if (toFetch.length > 0) {
     try {
-      const parentRes = await fetch("https://api.igdb.com/v4/games", {
+      const fetchRes = await fetch("https://api.igdb.com/v4/games", {
         method: "POST",
         headers: {
           "Client-ID": clientId,
@@ -228,21 +230,24 @@ Deno.serve(async (req) => {
         body:
           `fields name,slug,cover.url,summary,genres.name,platforms.name,` +
           `first_release_date,rating,rating_count,parent_game,version_parent; ` +
-          `where id = (${parentIds.join(",")}); limit ${parentIds.length};`,
+          `where id = (${toFetch.join(",")}); limit ${toFetch.length};`,
       });
-      if (parentRes.ok) {
-        const parents: IgdbGame[] = await parentRes.json();
-        for (const parent of parents) {
-          // Only swap in the parent if it's a proper standalone entry with a cover.
-          if (!parent.cover?.url || parent.parent_game != null || existingIds.has(parent.id)) continue;
-          const childIdx = filtered.findIndex((g) => g.parent_game === parent.id);
-          if (childIdx === -1) continue;
-          filtered.splice(childIdx, 1, parent);
-          existingIds.add(parent.id);
+      if (fetchRes.ok) {
+        const fetched: IgdbGame[] = await fetchRes.json();
+        const filteredIds = new Set(filtered.map((g) => g.id));
+        for (const g of fetched) {
+          // Only inject if the game's name is relevant to the query —
+          // prevents allowlisted games from appearing in unrelated searches.
+          const nameLower = g.name.toLowerCase();
+          const relevant = nameLower.includes(queryLower) || queryLower.includes(nameLower);
+          if (g.cover?.url && !filteredIds.has(g.id) && relevant) {
+            filtered.push(g);
+            filteredIds.add(g.id);
+          }
         }
       }
     } catch {
-      // Parent lookup failure is non-fatal — keep original exception entries.
+      // Non-fatal — allowlist fetch failure degrades gracefully.
     }
   }
 
