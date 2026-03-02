@@ -20,6 +20,8 @@ import { ReviewSection } from "./ReviewSection";
 export type GameDetail = Omit<Tables<"games">, "igdb_synced_at"> & {
   rating_count: number | null;
   banner_url: string | null;
+  developer: string | null;
+  publisher: string | null;
 };
 
 // Review row joined with the author's public profile columns + social counts.
@@ -274,6 +276,33 @@ export default async function GameDetailPage({ params }: Props) {
                     {genre}
                   </span>
                 ))}
+              </div>
+            )}
+
+            {/* Developer / Publisher */}
+            {(game.developer || game.publisher) && (
+              <div className="mt-3 flex flex-col gap-1 text-sm">
+                {game.developer === game.publisher && game.developer ? (
+                  <p className="text-zinc-400">
+                    <span className="font-medium text-zinc-200">Dev / Pub</span>
+                    {" "}{game.developer}
+                  </p>
+                ) : (
+                  <>
+                    {game.developer && (
+                      <p className="text-zinc-400">
+                        <span className="font-medium text-zinc-200">Dev</span>
+                        {"  "}{game.developer}
+                      </p>
+                    )}
+                    {game.publisher && (
+                      <p className="text-zinc-400">
+                        <span className="font-medium text-zinc-200">Pub</span>
+                        {"  "}{game.publisher}
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             )}
 

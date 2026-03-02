@@ -33,6 +33,11 @@ interface IgdbGame {
   remasters?: number[];
   artworks?: Array<{ url: string; width: number; height: number }>;
   screenshots?: Array<{ url: string; width: number; height: number }>;
+  involved_companies?: Array<{
+    company: { name: string };
+    developer: boolean;
+    publisher: boolean;
+  }>;
 }
 
 interface IgdbDlc {
@@ -106,6 +111,11 @@ function transformGame(game: IgdbGame) {
     ? `https:${backdrop.url}`.replace(/\/t_[^/]+\//, "/t_1080p/")
     : null;
 
+  const developer =
+    game.involved_companies?.find((c) => c.developer)?.company?.name ?? null;
+  const publisher =
+    game.involved_companies?.find((c) => c.publisher)?.company?.name ?? null;
+
   return {
     id: game.id,
     slug: game.slug,
@@ -121,6 +131,8 @@ function transformGame(game: IgdbGame) {
     // These fields are not in the games schema — returned for the UI only, not stored.
     rating_count: game.rating_count ?? null,
     banner_url,
+    developer,
+    publisher,
   };
 }
 
@@ -191,7 +203,8 @@ Deno.serve(async (req) => {
     `first_release_date,rating,rating_count,category,` +
     `dlcs,expansions,standalone_expansions,` +
     `artworks.url,artworks.width,artworks.height,` +
-    `screenshots.url,screenshots.width,screenshots.height; ` +
+    `screenshots.url,screenshots.width,screenshots.height,` +
+    `involved_companies.company.name,involved_companies.developer,involved_companies.publisher; ` +
     `limit 1;`;
 
   let igdbRes: Response;
@@ -265,7 +278,7 @@ Deno.serve(async (req) => {
 
       const admin = createClient(supabaseUrl, serviceRoleKey);
       // Destructure UI-only fields out — they're not columns in the games table.
-      const { rating_count: _rc, banner_url: _bu, ...gameRow } = game;
+      const { rating_count: _rc, banner_url: _bu, developer: _dev, publisher: _pub, ...gameRow } = game;
 
       const { error: upsertErr } = await admin
         .from("games")
