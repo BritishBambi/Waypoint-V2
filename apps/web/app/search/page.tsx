@@ -27,6 +27,7 @@ type UserResult = {
   bio: string | null;
   avatar_url: string | null;
   followerCount: number;
+  likeCount: number;
 };
 
 type Viewer = {
@@ -129,55 +130,86 @@ function useUserSearch(query: string) {
       return (profiles as Array<{
         id: string; username: string; display_name: string | null;
         bio: string | null; avatar_url: string | null;
-      }>).map((p) => ({ ...p, followerCount: countMap.get(p.id) ?? 0 }));
+      }>).map((p) => ({ ...p, followerCount: countMap.get(p.id) ?? 0, likeCount: 0 }));
     },
     enabled: query.trim().length >= 3,
     staleTime: 30_000,
   });
 }
 
-// Returns the 10 most-followed profiles on the platform for the idle state.
-// Strategy: fetch all follows → aggregate counts in JS → query top 10 profiles.
-// Acceptable for early-stage where the follows table is small.
+// Returns up to 20 profiles ranked by like_count DESC, follower_count DESC.
+// All profiles are included (LEFT JOIN semantics) so new users with zero
+// likes/followers still appear at the bottom of the list.
 function usePopularUsers() {
   return useQuery<UserResult[]>({
     queryKey: ["popular-users"],
     queryFn: async () => {
       const supabase = createClient();
 
-      // Aggregate follower counts from the follows table.
-      const { data: followData } = await supabase
-        .from("follows")
-        .select("followee_id");
-
-      const countMap = new Map<string, number>();
-      for (const row of (followData as Array<{ followee_id: string }> ?? [])) {
-        countMap.set(row.followee_id, (countMap.get(row.followee_id) ?? 0) + 1);
-      }
-
-      const topEntries = [...countMap.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10);
-
-      if (topEntries.length === 0) return [];
-
-      const topIds = topEntries.map(([id]) => id);
-      const { data: profiles } = await supabase
+      // 1. Fetch all profiles (limit 20 — enough for the idle directory).
+      const { data: rawProfiles } = await supabase
         .from("profiles")
         .select("id, username, display_name, bio, avatar_url")
-        .in("id", topIds);
+        .limit(20);
 
-      const profileMap = new Map(
-        (profiles as Array<{
-          id: string; username: string; display_name: string | null;
-          bio: string | null; avatar_url: string | null;
-        }> ?? []).map((p) => [p.id, p])
-      );
+      const profiles = (rawProfiles as Array<{
+        id: string; username: string; display_name: string | null;
+        bio: string | null; avatar_url: string | null;
+      }> ?? []);
 
-      // Return in follower-count order (topIds is already sorted).
-      return topIds
-        .filter((id) => profileMap.has(id))
-        .map((id) => ({ ...profileMap.get(id)!, followerCount: countMap.get(id) ?? 0 }));
+      if (profiles.length === 0) return [];
+
+      const profileIds = profiles.map((p) => p.id);
+
+      // 2. Follower counts and review IDs in parallel.
+      const [followRes, reviewRes] = await Promise.all([
+        supabase
+          .from("follows")
+          .select("followee_id")
+          .in("followee_id", profileIds),
+        supabase
+          .from("reviews")
+          .select("id, user_id")
+          .in("user_id", profileIds),
+      ]);
+
+      // Aggregate follower counts.
+      const followerMap = new Map<string, number>();
+      for (const row of (followRes.data as Array<{ followee_id: string }> ?? [])) {
+        followerMap.set(row.followee_id, (followerMap.get(row.followee_id) ?? 0) + 1);
+      }
+
+      // 3. Like counts — one query across all review IDs found above.
+      const reviewRows = (reviewRes.data as Array<{ id: string; user_id: string }> ?? []);
+      const reviewIds = reviewRows.map((r) => r.id);
+      // Map review_id → user_id so we can attribute likes back to the profile.
+      const reviewOwnerMap = new Map(reviewRows.map((r) => [r.id, r.user_id]));
+
+      const likeMap = new Map<string, number>(); // profile_id → total likes
+      if (reviewIds.length > 0) {
+        const { data: likeData } = await supabase
+          .from("review_likes")
+          .select("review_id")
+          .in("review_id", reviewIds);
+
+        for (const row of (likeData as Array<{ review_id: string }> ?? [])) {
+          const ownerId = reviewOwnerMap.get(row.review_id);
+          if (ownerId) likeMap.set(ownerId, (likeMap.get(ownerId) ?? 0) + 1);
+        }
+      }
+
+      // 4. Combine and sort: like_count DESC → follower_count DESC → registration order.
+      return profiles
+        .map((p) => ({
+          ...p,
+          followerCount: followerMap.get(p.id) ?? 0,
+          likeCount: likeMap.get(p.id) ?? 0,
+        }))
+        .sort((a, b) =>
+          b.likeCount !== a.likeCount
+            ? b.likeCount - a.likeCount
+            : b.followerCount - a.followerCount
+        );
     },
     staleTime: 5 * 60_000,
   });
