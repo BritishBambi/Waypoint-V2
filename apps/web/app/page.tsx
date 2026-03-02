@@ -405,7 +405,21 @@ export default async function Home() {
       });
       if (detailRes.ok) {
         const data = await detailRes.json();
-        heroArtworkUrl = (data.game?.banner_url as string | null) ?? null;
+        // Artwork-first for the hero (marketing moment); screenshot is fallback.
+        // Opposite priority to the game detail page (screenshots-first there).
+        type ImageRef = { url: string; width: number; height: number };
+        const artworks: ImageRef[] = data._debug?.artworks ?? [];
+        const screenshots: ImageRef[] = data._debug?.screenshots ?? [];
+        const landscapeArt = artworks.find(
+          (a) => a.width / a.height >= 1.7 && a.width / a.height <= 2.5 && a.height >= 700
+        );
+        const screenshot = screenshots.find(
+          (s) => (s.width ?? 0) >= 1280 && (s.height ?? 0) >= 700
+        );
+        const rawUrl = (landscapeArt ?? screenshot)?.url ?? null;
+        heroArtworkUrl = rawUrl
+          ? `https:${rawUrl}`.replace(/\/t_[^/]+\//, "/t_1080p/")
+          : null;
       }
     } catch {
       // Non-fatal — fall back to the dark solid background.
