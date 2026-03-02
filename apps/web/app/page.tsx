@@ -68,11 +68,11 @@ const STATUS_LABEL: Record<string, string> = {
 // Curated games for the logged-out hero background rotation.
 // Slugs are verified against IGDB. Artwork-first, screenshot fallback.
 const HERO_GAME_SLUGS = [
-  "resident-evil-requiem",
   "halo-3",
   "death-stranding-2-on-the-beach",
   "cyberpunk-2077",
-  "minecraft",
+  "it-takes-two",
+  "hades-2",
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
