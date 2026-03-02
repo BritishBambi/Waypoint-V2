@@ -169,5 +169,13 @@ Deno.serve(async (req) => {
   const games: IgdbGame[] = await igdbRes.json();
   const results = games.map(transformGame);
 
-  return json({ results });
+  return new Response(JSON.stringify({ results }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      // Cache at the CDN/browser layer — popular games list changes slowly.
+      "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+      ...CORS_HEADERS,
+    },
+  });
 });

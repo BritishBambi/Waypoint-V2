@@ -333,5 +333,13 @@ Deno.serve(async (req) => {
       summary: d.summary ?? null,
     }));
 
-  return json({ game, dlc, _debug });
+  return new Response(JSON.stringify({ game, dlc, _debug }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      // Game metadata changes rarely — cache aggressively, revalidate in background.
+      "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+      ...CORS_HEADERS,
+    },
+  });
 });

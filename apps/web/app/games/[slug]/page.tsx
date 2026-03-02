@@ -121,23 +121,40 @@ export default async function GameDetailPage({ params }: Props) {
 
   const baseReviews = (rawReviews ?? []) as Omit<ReviewWithAuthor, "like_count">[];
 
-  // Fetch like and comment counts for all displayed reviews.
+  // Run social counts (likes/comments) and the user's game_log fetch in parallel.
   // review_likes and review_comments are new (migration 0007) so we use
   // (supabase as any) until types are regenerated with `pnpm generate:types`.
+  const reviewIds = baseReviews.map((r) => r.id);
+
+  const [socialResult, logResult] = await Promise.all([
+    // Likes + comments for all displayed reviews (parallel inner Promise.all).
+    reviewIds.length > 0
+      ? Promise.all([
+          (supabase as any)
+            .from("review_likes")
+            .select("review_id")
+            .in("review_id", reviewIds),
+          (supabase as any)
+            .from("review_comments")
+            .select("review_id")
+            .in("review_id", reviewIds),
+        ])
+      : Promise.resolve(null as null),
+    // User's game log (only if authenticated).
+    user
+      ? supabase
+          .from("game_logs")
+          .select("id, status")
+          .eq("user_id", user.id)
+          .eq("game_id", game.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
   let likeCounts: Record<string, number> = {};
   let commentCounts: Record<string, number> = {};
-  if (baseReviews.length > 0) {
-    const reviewIds = baseReviews.map((r) => r.id);
-    const [{ data: likes }, { data: comments }] = await Promise.all([
-      (supabase as any)
-        .from("review_likes")
-        .select("review_id")
-        .in("review_id", reviewIds),
-      (supabase as any)
-        .from("review_comments")
-        .select("review_id")
-        .in("review_id", reviewIds),
-    ]);
+  if (socialResult) {
+    const [{ data: likes }, { data: comments }] = socialResult;
     if (likes) {
       for (const row of likes as { review_id: string }[]) {
         likeCounts[row.review_id] = (likeCounts[row.review_id] ?? 0) + 1;
@@ -156,29 +173,18 @@ export default async function GameDetailPage({ params }: Props) {
     comment_count: commentCounts[r.id] ?? 0,
   }));
 
-  // Fetch the user's existing game_log (if logged in).
-  let existingLog: LogSummary | null = null;
+  // Fetch the user's existing review (requires the log id, so it stays sequential).
+  let existingLog: LogSummary | null = (logResult.data as LogSummary | null) ?? null;
   let existingReview: Pick<Tables<"reviews">, "id" | "rating" | "body"> | null = null;
 
-  if (user) {
-    const { data: logRow } = await supabase
-      .from("game_logs")
-      .select("id, status")
-      .eq("user_id", user.id)
-      .eq("game_id", game.id)
+  if (existingLog) {
+    const { data: reviewRow } = await supabase
+      .from("reviews")
+      .select("id, rating, body")
+      .eq("log_id", existingLog.id)
       .maybeSingle();
 
-    existingLog = (logRow as LogSummary | null) ?? null;
-
-    if (existingLog) {
-      const { data: reviewRow } = await supabase
-        .from("reviews")
-        .select("id, rating, body")
-        .eq("log_id", existingLog.id)
-        .maybeSingle();
-
-      existingReview = (reviewRow as Pick<Tables<"reviews">, "id" | "rating" | "body"> | null) ?? null;
-    }
+    existingReview = (reviewRow as Pick<Tables<"reviews">, "id" | "rating" | "body"> | null) ?? null;
   }
 
   // ── 3. Derived display values ───────────────────────────────────────────────
