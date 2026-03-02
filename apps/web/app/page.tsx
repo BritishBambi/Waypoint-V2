@@ -65,6 +65,16 @@ const STATUS_LABEL: Record<string, string> = {
   dropped: "Dropped", shelved: "Shelved",
 };
 
+// Curated games for the logged-out hero background rotation.
+// Slugs are verified against IGDB. Artwork-first, screenshot fallback.
+const HERO_GAME_SLUGS = [
+  "resident-evil-requiem",
+  "halo-3",
+  "death-stranding-2-on-the-beach",
+  "cyberpunk-2077",
+  "minecraft",
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function avatarBg(username: string): string {
@@ -364,11 +374,13 @@ export default async function Home() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const anonKey    = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  // Fetch popular games — used for both the Popular Right Now carousel and
-  // (after random selection) the hero background.
-  let popularGames: GameStub[] = [];
-  try {
-    const popRes = await fetch(`${supabaseUrl}/functions/v1/igdb-popular`, {
+  // Pick a hero slug from the curated list, then fetch popular games and the
+  // hero game detail in parallel (they're independent of each other).
+  const heroSlug =
+    HERO_GAME_SLUGS[Math.floor(Math.random() * HERO_GAME_SLUGS.length)];
+
+  const [popularRes, heroDetailRes] = await Promise.all([
+    fetch(`${supabaseUrl}/functions/v1/igdb-popular`, {
       method: "POST",
       headers: {
         "apikey": anonKey,
@@ -376,54 +388,44 @@ export default async function Home() {
         "Content-Type": "application/json",
       },
       cache: "no-store",
-    });
-    if (popRes.ok) {
-      const data = await popRes.json();
-      popularGames = (data.results as GameStub[]) ?? [];
-    }
-  } catch {
-    // Non-fatal — popular section falls back to empty.
+    }).catch(() => null),
+
+    fetch(`${supabaseUrl}/functions/v1/igdb-game-detail`, {
+      method: "POST",
+      headers: {
+        "apikey": anonKey,
+        "Authorization": `Bearer ${anonKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ slug: heroSlug }),
+      next: { revalidate: 3600 },
+    }).catch(() => null),
+  ]);
+
+  let popularGames: GameStub[] = [];
+  if (popularRes?.ok) {
+    const data = await popularRes.json();
+    popularGames = (data.results as GameStub[]) ?? [];
   }
 
-  // Hero background: pick a random game from the top 5, fetch its detail
-  // (screenshots-first — width ≥ 1280, height ≥ 700; landscape artwork fallback
-  // with ratio 1.7–2.5, height ≥ 700). Falls back to dark gradient if absent.
+  // Hero background: artwork-first (marketing moment), screenshot fallback.
+  // Opposite priority to the game detail page (screenshots-first there).
   let heroArtworkUrl: string | null = null;
-  if (popularGames.length > 0) {
-    const pool     = popularGames.slice(0, Math.min(5, popularGames.length));
-    const heroGame = pool[Math.floor(Math.random() * pool.length)];
-    try {
-      const detailRes = await fetch(`${supabaseUrl}/functions/v1/igdb-game-detail`, {
-        method: "POST",
-        headers: {
-          "apikey": anonKey,
-          "Authorization": `Bearer ${anonKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ slug: heroGame.slug }),
-        next: { revalidate: 3600 },
-      });
-      if (detailRes.ok) {
-        const data = await detailRes.json();
-        // Artwork-first for the hero (marketing moment); screenshot is fallback.
-        // Opposite priority to the game detail page (screenshots-first there).
-        type ImageRef = { url: string; width: number; height: number };
-        const artworks: ImageRef[] = data._debug?.artworks ?? [];
-        const screenshots: ImageRef[] = data._debug?.screenshots ?? [];
-        const landscapeArt = artworks.find(
-          (a) => a.width / a.height >= 1.7 && a.width / a.height <= 2.5 && a.height >= 700
-        );
-        const screenshot = screenshots.find(
-          (s) => (s.width ?? 0) >= 1280 && (s.height ?? 0) >= 700
-        );
-        const rawUrl = (landscapeArt ?? screenshot)?.url ?? null;
-        heroArtworkUrl = rawUrl
-          ? `https:${rawUrl}`.replace(/\/t_[^/]+\//, "/t_1080p/")
-          : null;
-      }
-    } catch {
-      // Non-fatal — fall back to the dark solid background.
-    }
+  if (heroDetailRes?.ok) {
+    const data = await heroDetailRes.json();
+    type ImageRef = { url: string; width: number; height: number };
+    const artworks: ImageRef[]   = data._debug?.artworks   ?? [];
+    const screenshots: ImageRef[] = data._debug?.screenshots ?? [];
+    const landscapeArt = artworks.find(
+      (a) => a.width / a.height >= 1.7 && a.width / a.height <= 2.5 && a.height >= 700
+    );
+    const screenshot = screenshots.find(
+      (s) => (s.width ?? 0) >= 1280 && (s.height ?? 0) >= 700
+    );
+    const rawUrl = (landscapeArt ?? screenshot)?.url ?? null;
+    heroArtworkUrl = rawUrl
+      ? `https:${rawUrl}`.replace(/\/t_[^/]+\//, "/t_1080p/")
+      : null;
   }
 
   return (
