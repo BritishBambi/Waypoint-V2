@@ -72,7 +72,7 @@ const HERO_GAME_SLUGS = [
   "death-stranding-2-on-the-beach",
   "cyberpunk-2077",
   "it-takes-two",
-  "hades-ii",
+  "hades--1",
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
