@@ -283,7 +283,7 @@ export default async function Home({
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-base font-semibold text-white">New From Friends</h2>
             <Link
-              href={`/user/${username}`}
+              href="/activity"
               className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
             >
               All Activity →
