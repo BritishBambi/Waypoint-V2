@@ -278,14 +278,14 @@ export default async function UserProfilePage({
       {(hasFavourites || isOwnProfile) && (
         <section className="mt-10">
           <h2 className="mb-4 text-base font-semibold text-white">Favourite Games</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:w-fit">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:w-fit">
             {favouriteSlots.map((game, i) =>
               game ? (
                 // Filled slot — cover with title tooltip on hover
                 <Link
                   key={game.id}
                   href={`/games/${game.slug}`}
-                  className="group relative w-[110px] aspect-[2/3] overflow-hidden rounded-lg bg-zinc-800"
+                  className="group relative w-full lg:w-[220px] aspect-[2/3] overflow-hidden rounded-lg bg-zinc-800"
                   title={game.title}
                 >
                   {game.cover_url ? (
@@ -293,7 +293,7 @@ export default async function UserProfilePage({
                       src={igdbCover(game.cover_url, "t_720p")!}
                       alt={game.title}
                       fill
-                      sizes="(max-width: 768px) 50vw, 25vw"
+                      sizes="(max-width: 1024px) 50vw, 220px"
                       quality={90}
                       className="object-cover transition-transform duration-200 group-hover:scale-105"
                     />
@@ -312,7 +312,7 @@ export default async function UserProfilePage({
                 <Link
                   key={`empty-${i}`}
                   href={`/user/${profile.username}/edit`}
-                  className="flex aspect-[2/3] w-full max-w-[110px] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-zinc-800 transition-colors hover:border-zinc-600"
+                  className="flex aspect-[2/3] w-full lg:max-w-[220px] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-zinc-800 transition-colors hover:border-zinc-600"
                   title="Add a favourite game"
                 >
                   <svg
@@ -328,7 +328,7 @@ export default async function UserProfilePage({
                 // Empty slot on someone else's profile — muted placeholder
                 <div
                   key={`empty-${i}`}
-                  className="aspect-[2/3] w-full max-w-[110px] rounded-lg border border-dashed border-zinc-800"
+                  className="aspect-[2/3] w-full lg:max-w-[220px] rounded-lg border border-dashed border-zinc-800"
                   aria-hidden="true"
                 />
               )
@@ -381,8 +381,8 @@ export default async function UserProfilePage({
         {logs.length === 0 ? (
           <EmptyLibrary isOwnProfile={isOwnProfile} />
         ) : (
-          // 2-col mobile → 3-col tablet → 4-col desktop
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          // 2-col mobile → 4-col tablet → 5-col desktop (denser catalogue)
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
             {logs.map(({ id, status, games }) =>
               games ? (
                 <Link key={id} href={`/games/${games.slug}`} className="group">
@@ -392,7 +392,7 @@ export default async function UserProfilePage({
                         src={igdbCover(games.cover_url, "t_720p")!}
                         alt={games.title}
                         fill
-                        sizes="(max-width: 768px) 50vw, 25vw"
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
                         quality={90}
                         className="object-cover transition-transform duration-200 group-hover:scale-105"
                       />
