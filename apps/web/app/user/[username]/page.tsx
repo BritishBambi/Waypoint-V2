@@ -16,6 +16,7 @@ import type { Tables } from "@waypoint/types";
 import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
 import { FollowButton } from "./FollowButton";
+import { LibraryCarousel } from "./LibraryCarousel";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
 // Supabase returns nested objects for FK joins. We define our own shapes and
@@ -376,44 +377,25 @@ export default async function UserProfilePage({
 
       {/* ── Game Library ─────────────────────────────────────────────────────── */}
       <section className="mt-12">
-        <h2 className="mb-4 text-base font-semibold text-white">Game Library</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-white">Game Library</h2>
+          {logs.length > 0 && (
+            <Link
+              href={`/user/${profile.username}/library`}
+              className="flex items-center gap-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+            >
+              View all
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </Link>
+          )}
+        </div>
 
         {logs.length === 0 ? (
           <EmptyLibrary isOwnProfile={isOwnProfile} />
         ) : (
-          // 2-col mobile → 4-col tablet → 5-col desktop (denser catalogue)
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-            {logs.map(({ id, status, games }) =>
-              games ? (
-                <Link key={id} href={`/games/${games.slug}`} className="group">
-                  <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800">
-                    {games.cover_url ? (
-                      <Image
-                        src={igdbCover(games.cover_url, "t_720p")!}
-                        alt={games.title}
-                        fill
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
-                        quality={90}
-                        className="object-cover transition-transform duration-200 group-hover:scale-105"
-                      />
-                    ) : (
-                      <NoCover />
-                    )}
-                  </div>
-                  <div className="mt-1.5 space-y-1">
-                    <p className="text-xs font-medium text-zinc-300 line-clamp-1 transition-colors group-hover:text-white">
-                      {games.title}
-                    </p>
-                    <span
-                      className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.shelved}`}
-                    >
-                      {STATUS_LABEL[status] ?? status}
-                    </span>
-                  </div>
-                </Link>
-              ) : null
-            )}
-          </div>
+          <LibraryCarousel items={logs} />
         )}
       </section>
 
