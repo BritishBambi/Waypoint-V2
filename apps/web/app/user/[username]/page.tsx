@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
 import { FollowButton } from "./FollowButton";
 import { LibraryCarousel } from "./LibraryCarousel";
+import { ListCard, ListRow } from "@/components/ListCard";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
 // Supabase returns nested objects for FK joins. We define our own shapes and
@@ -118,7 +119,16 @@ export default async function UserProfilePage({
   // ── 2. Parallel data fetching ───────────────────────────────────────────────
   // Named result variables avoid TypeScript tuple-inference issues that arise
   // when mixing head:true count queries with data queries in one destructure.
-  const [logsRes, reviewsRes, authRes, favsRes, followerRes, followingRes] =
+  const [
+    logsRes,
+    reviewsRes,
+    authRes,
+    favsRes,
+    followerRes,
+    followingRes,
+    listsCountRes,
+    recentListsRes,
+  ] =
     await Promise.all([
       supabase
         .from("game_logs")
@@ -148,12 +158,32 @@ export default async function UserProfilePage({
         .select("*", { count: "exact", head: true })
         .eq("followee_id", profile.id),
 
+      // Count of lists owned by this user (only public for others)
+      supabase
+        .from("lists")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", profile.id)
+        .eq("is_public", true),
+
+      // Fetch up to 3 recent public lists with first few covers
+      supabase
+        .from("lists")
+        .select(`
+          id, title, is_ranked, is_public, created_at,
+          list_entries(position, games(cover_url)),
+          list_likes(id)
+        `)
+        .eq("user_id", profile.id)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false })
+        .limit(3),
+
       // Count of users this profile follows.
       supabase
         .from("follows")
         .select("*", { count: "exact", head: true })
         .eq("follower_id", profile.id),
-    ]);
+  ]);
 
   const rawLogs      = logsRes.data;
   const rawReviews   = reviewsRes.data;
@@ -161,10 +191,20 @@ export default async function UserProfilePage({
   const rawFavourites = favsRes.data;
   const followerCount = followerRes.count ?? 0;
   const followingCount = followingRes.count ?? 0;
+  const listsCount = listsCountRes.count ?? 0;
 
   const logs      = (rawLogs      ?? []) as unknown as LogWithGame[];
   const reviews   = (rawReviews   ?? []) as unknown as ReviewWithGame[];
   const favRows   = (rawFavourites ?? []) as unknown as FavouriteSlot[];
+  const recentLists = (recentListsRes.data ?? []) as unknown as Array<{
+    id: string;
+    title: string;
+    is_ranked: boolean;
+    is_public: boolean;
+    created_at: string;
+    list_entries: Array<{ position: number | null; games: { cover_url: string | null } | null }>;
+    list_likes: Array<{ id: string }>;
+  }>;
 
   // Build a 4-element array indexed by position (0 = position 1).
   const favouriteSlots: (GameStub | null)[] = [null, null, null, null];
@@ -258,6 +298,12 @@ export default async function UserProfilePage({
             <StatPill value={totalPlayed} label="Played" />
             <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
             <StatPill value={reviews.length} label="Reviews" />
+            <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
+            <StatLinkPill
+              value={listsCount}
+              label="Lists"
+              href={`/user/${profile.username}/lists`}
+            />
             <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
             <StatLinkPill
               value={followerCount}
@@ -398,6 +444,30 @@ export default async function UserProfilePage({
           <LibraryCarousel items={logs} />
         )}
       </section>
+
+      {/* ── Recent Lists ─────────────────────────────────────────────────────── */}
+      {recentLists.length > 0 && (
+        <section className="mt-12">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-white">Lists</h2>
+            <Link
+              href={`/user/${profile.username}/lists`}
+              className="flex items-center gap-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+            >
+              View all
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {recentLists.map((list) => (
+              <ListCard key={list.id} list={list} username={profile.username} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Reviews ──────────────────────────────────────────────────────────── */}
       <section className="mt-12">
