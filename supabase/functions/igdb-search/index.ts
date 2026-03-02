@@ -186,6 +186,8 @@ Deno.serve(async (req) => {
   // Adult content keywords — checked as substrings of the lowercased title.
   const ADULT_KEYWORDS = ["sex", "porn", "hentai", "eroge", "adult", "xxx"];
 
+  // Normalised query used for title-match boosting in the sort below.
+  const queryLower = query.toLowerCase();
 
   const results = games
     // Exclude editions of other games (Ultimate Edition, Day One, etc.).
@@ -204,7 +206,21 @@ Deno.serve(async (req) => {
       const lower = g.name.toLowerCase();
       return !ADULT_KEYWORDS.some((kw) => lower.includes(kw));
     })
-    .sort((a, b) => (b.rating_count ?? 0) - (a.rating_count ?? 0))
+    // Three-tier sort:
+    //   1. Exact title match (e.g. "Minecraft" when query is "minecraft")
+    //   2. Title starts with query (e.g. "Zelda: …" when query is "zelda")
+    //   3. Popularity (rating_count descending) as tiebreaker
+    .sort((a, b) => {
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      const aExact = aName === queryLower ? 1 : 0;
+      const bExact = bName === queryLower ? 1 : 0;
+      if (bExact !== aExact) return bExact - aExact;
+      const aStarts = aName.startsWith(queryLower) ? 1 : 0;
+      const bStarts = bName.startsWith(queryLower) ? 1 : 0;
+      if (bStarts !== aStarts) return bStarts - aStarts;
+      return (b.rating_count ?? 0) - (a.rating_count ?? 0);
+    })
     .slice(0, 20)
     .map(transformGame);
 
