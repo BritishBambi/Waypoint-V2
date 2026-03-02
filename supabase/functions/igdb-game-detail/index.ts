@@ -97,17 +97,18 @@ function transformGame(game: IgdbGame) {
       ? Math.min(parseFloat(game.rating.toFixed(2)), 99.99)
       : null;
 
-  // Pick the best landscape image for the backdrop banner.
-  // Ratio >= 1.7 targets proper landscape art (wider than 17:10).
-  // height >= 700 rejects short banner strips and low-res title cards.
-  // Falls back to any HD screenshot (width >= 1280) as a reliable 16:9 source.
-  const landscapeArt = game.artworks?.find(
-    (a) => a.width / a.height >= 1.7 && a.height >= 700
-  ) ?? null;
+  // Screenshots are proven 16:9 gameplay shots — prefer them over artwork.
+  // Artwork dimensions are unreliable indicators of scene content (title cards
+  // can pass ratio/height checks). Screenshots first, artwork only as fallback.
+  // Artwork filter: 1.7–2.5 ratio rejects ultra-wide panoramic strips (6.5:1)
+  // and near-square title cards; height >= 700 rejects short banner strips.
   const screenshot = game.screenshots?.find(
-    (s) => (s.width ?? 0) >= 1280
+    (s) => (s.width ?? 0) >= 1280 && (s.height ?? 0) >= 700
   ) ?? null;
-  const backdrop = landscapeArt ?? screenshot ?? null;
+  const landscapeArt = game.artworks?.find(
+    (a) => a.width / a.height >= 1.7 && a.width / a.height <= 2.5 && a.height >= 700
+  ) ?? null;
+  const backdrop = screenshot ?? landscapeArt ?? null;
   const banner_url = backdrop
     ? `https:${backdrop.url}`.replace(/\/t_[^/]+\//, "/t_1080p/")
     : null;
@@ -239,6 +240,21 @@ Deno.serve(async (req) => {
   const rawGame = games[0];
   const game = transformGame(rawGame);
 
+  const _debug = {
+    artworks: rawGame.artworks?.map(a => ({
+      url: a.url,
+      width: a.width,
+      height: a.height,
+      ratio: a.width && a.height ? parseFloat((a.width / a.height).toFixed(2)) : null,
+    })),
+    screenshots: rawGame.screenshots?.map(s => ({
+      url: s.url,
+      width: s.width,
+      height: s.height,
+    })),
+    selected_banner: game.banner_url,
+  };
+
   // Collect all DLC/expansion IDs from the game's own arrays.
   // This is more reliable than querying parent_game back-references.
   const dlcIds = [
@@ -317,5 +333,5 @@ Deno.serve(async (req) => {
       summary: d.summary ?? null,
     }));
 
-  return json({ game, dlc });
+  return json({ game, dlc, _debug });
 });
