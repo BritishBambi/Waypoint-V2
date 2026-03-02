@@ -313,23 +313,11 @@ function ReviewCard({ review }: { review: ReviewWithAuthor }) {
             )}
           </div>
 
-          {/* Right: star rating + social counts */}
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <div className="flex items-center gap-1 text-yellow-400">
-              <StarFilledIcon className="h-3.5 w-3.5" />
-              <span className="text-sm font-semibold text-white">{review.rating}</span>
-              <span className="text-xs text-zinc-500">/5</span>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-zinc-500">
-              <span className="flex items-center gap-1">
-                <HeartIcon className="h-3 w-3" />
-                {review.like_count}
-              </span>
-              <span className="flex items-center gap-1">
-                <ChatBubbleIcon className="h-3 w-3" />
-                {review.comment_count}
-              </span>
-            </div>
+          {/* Right: star rating */}
+          <div className="flex shrink-0 items-center gap-1 text-yellow-400">
+            <StarFilledIcon className="h-3.5 w-3.5" />
+            <span className="text-sm font-semibold text-white">{review.rating}</span>
+            <span className="text-xs text-zinc-500">/5</span>
           </div>
         </div>
       </div>
@@ -347,6 +335,18 @@ function ReviewCard({ review }: { review: ReviewWithAuthor }) {
       ) : (
         <p className="text-xs italic text-zinc-600">No written review.</p>
       )}
+
+      {/* Social counts — bottom right */}
+      <div className="mt-4 flex items-center justify-end gap-4 text-sm text-zinc-400">
+        <span className="flex items-center gap-1.5">
+          <HeartIcon className="h-3.5 w-3.5" />
+          {review.like_count}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <ChatBubbleIcon className="h-3.5 w-3.5" />
+          {review.comment_count}
+        </span>
+      </div>
     </Link>
   );
 }
