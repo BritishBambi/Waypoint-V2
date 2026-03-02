@@ -26,7 +26,7 @@ export async function Nav() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <Link
           href="/"
-          className="text-lg font-bold tracking-tight text-white hover:text-zinc-200"
+          className="rounded px-2 py-2 text-2xl font-bold tracking-tight text-white hover:text-zinc-200"
         >
           Waypoint
         </Link>
