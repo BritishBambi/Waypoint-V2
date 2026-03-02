@@ -5,6 +5,7 @@
 // initial state and re-fetches from the browser Supabase client after a write.
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useId } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { ReviewWithAuthor, LogSummary } from "./page";
@@ -35,17 +36,8 @@ export function ReviewSection({
   existingReview,
 }: Props) {
   const [reviews, setReviews] = useState<ReviewWithAuthor[]>(initialReviews);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [isWriting, setIsWriting] = useState(false);
   const [hasReview, setHasReview] = useState(!!existingReview);
-
-  function toggleExpanded(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
 
   async function refetchReviews() {
     const supabase = createClient();
@@ -58,7 +50,23 @@ export function ReviewSection({
       .order("published_at", { ascending: false })
       .limit(20);
 
-    if (data) setReviews(data as ReviewWithAuthor[]);
+    if (!data) return;
+
+    const base = data as Omit<ReviewWithAuthor, "like_count">[];
+    const ids = base.map((r) => r.id);
+    let counts: Record<string, number> = {};
+    if (ids.length > 0) {
+      const { data: likes } = await (supabase as any)
+        .from("review_likes")
+        .select("review_id")
+        .in("review_id", ids);
+      if (likes) {
+        for (const row of likes as { review_id: string }[]) {
+          counts[row.review_id] = (counts[row.review_id] ?? 0) + 1;
+        }
+      }
+    }
+    setReviews(base.map((r) => ({ ...r, like_count: counts[r.id] ?? 0 })));
   }
 
   const canWrite = !!userId && !!existingLog && !hasReview;
@@ -114,12 +122,7 @@ export function ReviewSection({
       ) : (
         <div className="space-y-4">
           {reviews.map((review) => (
-            <ReviewCard
-              key={review.id}
-              review={review}
-              isExpanded={expanded.has(review.id)}
-              onToggleExpand={() => toggleExpanded(review.id)}
-            />
+            <ReviewCard key={review.id} review={review} />
           ))}
         </div>
       )}
@@ -243,15 +246,9 @@ function WriteReviewForm({
 
 // ─── ReviewCard ───────────────────────────────────────────────────────────────
 
-interface ReviewCardProps {
-  review: ReviewWithAuthor;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
-}
+const TRUNCATE_AT = 200; // characters — full review lives at /review/[id]
 
-const TRUNCATE_AT = 300; // characters
-
-function ReviewCard({ review, isExpanded, onToggleExpand }: ReviewCardProps) {
+function ReviewCard({ review }: { review: ReviewWithAuthor }) {
   const author = review.profiles;
   const displayName = author?.display_name ?? author?.username ?? "Anonymous";
   const initials = displayName.slice(0, 2).toUpperCase();
@@ -264,10 +261,9 @@ function ReviewCard({ review, isExpanded, onToggleExpand }: ReviewCardProps) {
     : null;
 
   const isTruncated = (review.body?.length ?? 0) > TRUNCATE_AT;
-  const bodyText =
-    isTruncated && !isExpanded
-      ? review.body!.slice(0, TRUNCATE_AT).trimEnd() + "…"
-      : review.body;
+  const bodyText = isTruncated
+    ? review.body!.slice(0, TRUNCATE_AT).trimEnd() + "…"
+    : review.body;
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
@@ -292,18 +288,27 @@ function ReviewCard({ review, isExpanded, onToggleExpand }: ReviewCardProps) {
 
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="text-sm font-medium text-white">{displayName}</span>
+            {/* Reviewer name — links to full review */}
+            <Link
+              href={`/review/${review.id}`}
+              className="text-sm font-medium text-white transition-colors hover:text-indigo-400"
+            >
+              {displayName}
+            </Link>
             {author?.username && author.username !== displayName && (
               <span className="text-xs text-zinc-500">@{author.username}</span>
             )}
-            {/* Rating */}
-            <span className="ml-auto flex items-center gap-1 text-yellow-400">
+            {/* Rating — also links to full review */}
+            <Link
+              href={`/review/${review.id}`}
+              className="ml-auto flex items-center gap-1 text-yellow-400 hover:opacity-80"
+            >
               <StarFilledIcon className="h-3.5 w-3.5" />
               <span className="text-sm font-semibold text-white">
                 {review.rating}
               </span>
               <span className="text-xs text-zinc-500">/5</span>
-            </span>
+            </Link>
           </div>
           {dateStr && (
             <p className="text-xs text-zinc-500">{dateStr}</p>
@@ -316,16 +321,24 @@ function ReviewCard({ review, isExpanded, onToggleExpand }: ReviewCardProps) {
         <>
           <p className="text-sm leading-relaxed text-zinc-300">{bodyText}</p>
           {isTruncated && (
-            <button
-              onClick={onToggleExpand}
-              className="mt-2 text-xs font-medium text-indigo-400 hover:text-indigo-300"
+            <Link
+              href={`/review/${review.id}`}
+              className="mt-2 inline-block text-xs font-medium text-indigo-400 hover:text-indigo-300"
             >
-              {isExpanded ? "Show less" : "Read more"}
-            </button>
+              Read more
+            </Link>
           )}
         </>
       ) : (
         <p className="text-xs italic text-zinc-600">No written review.</p>
+      )}
+
+      {/* Like count — static display; interactive version is on /review/[id] */}
+      {review.like_count > 0 && (
+        <div className="mt-3 flex items-center gap-1 text-xs text-zinc-500">
+          <HeartIcon className="h-3 w-3" />
+          <span>{review.like_count}</span>
+        </div>
       )}
     </div>
   );
@@ -473,6 +486,24 @@ function StarFilledIcon({ className }: { className?: string }) {
       aria-hidden="true"
     >
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+
+function HeartIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
   );
 }

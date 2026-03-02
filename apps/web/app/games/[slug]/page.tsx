@@ -22,12 +22,14 @@ export type GameDetail = Omit<Tables<"games">, "igdb_synced_at"> & {
   banner_url: string | null;
 };
 
-// Review row joined with the author's public profile columns.
+// Review row joined with the author's public profile columns + like count.
+// like_count is computed server-side from review_likes (migration 0007).
 export type ReviewWithAuthor = Tables<"reviews"> & {
   profiles: Pick<
     Tables<"profiles">,
     "username" | "display_name" | "avatar_url"
   > | null;
+  like_count: number;
 };
 
 // Serialisable slice of a game_log row passed to Client Components.
@@ -113,7 +115,29 @@ export default async function GameDetailPage({ params }: Props) {
       .limit(20),
   ]);
 
-  const reviews = (rawReviews ?? []) as ReviewWithAuthor[];
+  const baseReviews = (rawReviews ?? []) as Omit<ReviewWithAuthor, "like_count">[];
+
+  // Fetch like counts for all displayed reviews in one query.
+  // review_likes is new (migration 0007) so we use (supabase as any) until
+  // types are regenerated with `pnpm generate:types`.
+  let likeCounts: Record<string, number> = {};
+  if (baseReviews.length > 0) {
+    const reviewIds = baseReviews.map((r) => r.id);
+    const { data: likes } = await (supabase as any)
+      .from("review_likes")
+      .select("review_id")
+      .in("review_id", reviewIds);
+    if (likes) {
+      for (const row of likes as { review_id: string }[]) {
+        likeCounts[row.review_id] = (likeCounts[row.review_id] ?? 0) + 1;
+      }
+    }
+  }
+
+  const reviews: ReviewWithAuthor[] = baseReviews.map((r) => ({
+    ...r,
+    like_count: likeCounts[r.id] ?? 0,
+  }));
 
   // Fetch the user's existing game_log (if logged in).
   let existingLog: LogSummary | null = null;
