@@ -185,14 +185,25 @@ function usePopularUsers() {
 
 // Returns one page of globally popular games from the igdb-popular Edge Function.
 function usePopularGames(page: number) {
-  const supabase = createClient();
   return useQuery<PopularGame[]>({
     queryKey: ["popular-games", page],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("igdb-popular", {
-        body: { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE },
+      const base = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const key  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const res = await fetch(`${base}/functions/v1/igdb-popular`, {
+        method: "POST",
+        headers: {
+          "apikey": key,
+          "Authorization": `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
       });
-      if (error) throw error;
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? `HTTP ${res.status} from igdb-popular`);
+      }
+      const data = await res.json();
       return (data?.results as PopularGame[]) ?? [];
     },
     staleTime: 5 * 60_000,
@@ -532,7 +543,7 @@ function PopularGamesPanel({
   onPageChange: (p: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { data: games, isLoading } = usePopularGames(page);
+  const { data: games, isLoading, isError, error } = usePopularGames(page);
 
   function goToPage(p: number) {
     onPageChange(p);
@@ -546,6 +557,8 @@ function PopularGamesPanel({
       </h2>
       {isLoading ? (
         <SkeletonGrid />
+      ) : isError ? (
+        <ErrorState error={error} />
       ) : !games || games.length === 0 ? (
         <p className="py-12 text-center text-sm text-zinc-500">No popular games found.</p>
       ) : (
