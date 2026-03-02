@@ -1,20 +1,23 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { UserMenu } from "@/components/UserMenu";
 
 export async function Nav() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   let username: string | null = null;
+  let avatarUrl: string | null = null;
   if (user) {
     const { data: rawData } = await supabase
       .from("profiles")
-      .select("username")
+      .select("username, avatar_url")
       .eq("id", user.id)
       .single();
     // Explicit cast — PostgrestVersion 14.1 inference regression
-    const data = rawData as { username: string } | null;
+    const data = rawData as { username: string; avatar_url: string | null } | null;
     username = data?.username ?? null;
+    avatarUrl = data?.avatar_url ?? null;
   }
 
   return (
@@ -27,15 +30,9 @@ export async function Nav() {
           Waypoint
         </Link>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {username && (
-            <Link
-              href={`/user/${username}`}
-              className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
-            >
-              Logged in as{" "}
-              <span className="text-zinc-400">{username}</span>
-            </Link>
+            <UserMenu username={username} avatarUrl={avatarUrl} />
           )}
 
           <Link
