@@ -8,7 +8,7 @@
 // useSearchParams() requires a Suspense boundary — the default export wraps the
 // inner component so Next.js can still statically analyse the route.
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -33,6 +33,18 @@ type Viewer = {
   userId: string | null;
   followeeIds: Set<string>;
 };
+
+type PopularGame = {
+  id: number;
+  slug: string;
+  title: string;
+  cover_url: string | null;
+  igdb_rating: number | null;
+  release_year: number | null;
+};
+
+const PAGE_SIZE   = 25;
+const TOTAL_PAGES = 8;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -171,6 +183,22 @@ function usePopularUsers() {
   });
 }
 
+// Returns one page of globally popular games from the igdb-popular Edge Function.
+function usePopularGames(page: number) {
+  const supabase = createClient();
+  return useQuery<PopularGame[]>({
+    queryKey: ["popular-games", page],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("igdb-popular", {
+        body: { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE },
+      });
+      if (error) throw error;
+      return (data?.results as PopularGame[]) ?? [];
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
 // ─── Page entry ───────────────────────────────────────────────────────────────
 
 // Suspense boundary required by useSearchParams() in Next.js 14 App Router.
@@ -285,12 +313,16 @@ function TabButton({
 // ─── Games panel (unchanged behaviour) ────────────────────────────────────────
 
 function GamesPanel({ query }: { query: string }) {
+  // directoryPage lives here (not inside PopularGamesPanel) so it survives
+  // the panel unmounting when the user types a query and then clears it.
+  const [directoryPage, setDirectoryPage] = useState(1);
   const { results, isLoading, isError, error } = useGameSearch(query);
   const hasQuery = query.trim().length >= 3;
 
-  if (!hasQuery) return <GamesIdleState />;
+  if (!hasQuery)
+    return <PopularGamesPanel page={directoryPage} onPageChange={setDirectoryPage} />;
   if (isLoading) return <SkeletonGrid />;
-  if (isError) return <ErrorState error={error} />;
+  if (isError)   return <ErrorState error={error} />;
   if (results.length === 0) return <GamesEmptyState query={query} />;
   return <ResultsGrid results={results} />;
 }
@@ -490,36 +522,176 @@ function UserSkeletonList() {
   );
 }
 
-// ─── Games panel sub-components (unchanged from original) ─────────────────────
+// ─── Popular Games directory (Games tab idle state) ───────────────────────────
 
-function GamesIdleState() {
+function PopularGamesPanel({
+  page,
+  onPageChange,
+}: {
+  page: number;
+  onPageChange: (p: number) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { data: games, isLoading } = usePopularGames(page);
+
+  function goToPage(p: number) {
+    onPageChange(p);
+    containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
-    <div className="flex flex-col items-center py-24 text-center">
-      <div className="mb-4 rounded-full bg-zinc-900 p-5">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-zinc-500"
-          aria-hidden="true"
-        >
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.35-4.35" />
-        </svg>
-      </div>
-      <p className="text-lg font-medium text-zinc-300">Search for a game</p>
-      <p className="mt-1 text-sm text-zinc-500">
-        Start typing — results appear after 3 characters
-      </p>
+    <div ref={containerRef}>
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-zinc-500">
+        Popular Games
+      </h2>
+      {isLoading ? (
+        <SkeletonGrid />
+      ) : !games || games.length === 0 ? (
+        <p className="py-12 text-center text-sm text-zinc-500">No popular games found.</p>
+      ) : (
+        <>
+          <PopularGamesGrid games={games} />
+          <PaginationControls page={page} totalPages={TOTAL_PAGES} onPageChange={goToPage} />
+        </>
+      )}
     </div>
   );
 }
+
+function PopularGamesGrid({ games }: { games: PopularGame[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+      {games.map((game) => (
+        <PopularGameCard key={game.id} game={game} />
+      ))}
+    </div>
+  );
+}
+
+function PopularGameCard({ game }: { game: PopularGame }) {
+  const coverUrl = game.cover_url ? igdbCover(game.cover_url, "t_720p") : null;
+
+  return (
+    <Link
+      href={`/games/${game.slug}`}
+      className="group flex flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 transition-all duration-200 hover:-translate-y-1 hover:border-zinc-600 hover:shadow-xl hover:shadow-black/40"
+    >
+      <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-800">
+        {coverUrl ? (
+          <Image
+            src={coverUrl}
+            alt={game.title}
+            fill
+            sizes="(max-width: 768px) 50vw, 20vw"
+            quality={90}
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-zinc-600"
+              aria-hidden="true"
+            >
+              <rect x="2" y="6" width="20" height="12" rx="2" />
+              <path d="M6 12h4M8 10v4" />
+              <circle cx="15" cy="12" r="1" />
+              <circle cx="18" cy="12" r="1" />
+            </svg>
+          </div>
+        )}
+      </div>
+      <div className="flex flex-1 flex-col gap-1 p-3">
+        <p className="line-clamp-2 text-sm font-semibold leading-snug text-white">
+          {game.title}
+        </p>
+        {game.release_year && (
+          <p className="text-xs text-zinc-500">{game.release_year}</p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function PaginationControls({
+  page,
+  totalPages,
+  onPageChange,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (p: number) => void;
+}) {
+  return (
+    <div className="mt-8 flex items-center justify-center gap-4">
+      {/* Left arrow — hidden on page 1, placeholder keeps indicator centred */}
+      {page > 1 ? (
+        <button
+          onClick={() => onPageChange(page - 1)}
+          aria-label="Previous page"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+      ) : (
+        <div className="w-8" aria-hidden="true" />
+      )}
+
+      <span className="text-sm text-zinc-400">
+        Page {page} of {totalPages}
+      </span>
+
+      {/* Right arrow — hidden on last page */}
+      {page < totalPages ? (
+        <button
+          onClick={() => onPageChange(page + 1)}
+          aria-label="Next page"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+      ) : (
+        <div className="w-8" aria-hidden="true" />
+      )}
+    </div>
+  );
+}
+
+// ─── Games panel sub-components ───────────────────────────────────────────────
 
 function GamesEmptyState({ query }: { query: string }) {
   return (

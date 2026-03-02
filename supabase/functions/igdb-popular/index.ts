@@ -72,12 +72,17 @@ function transformGame(game: IgdbGame) {
       ? Math.min(parseFloat(game.rating.toFixed(2)), 99.99)
       : null;
 
+  const releaseYear = game.first_release_date
+    ? new Date(game.first_release_date * 1000).getUTCFullYear()
+    : null;
+
   return {
     id: game.id,
     slug: game.slug,
     title: game.name,
     cover_url: coverUrl,
     igdb_rating: igdbRating,
+    release_year: releaseYear,
   };
 }
 
@@ -104,6 +109,15 @@ Deno.serve(async (req) => {
     return json({ error: "Method not allowed" }, 405);
   }
 
+  // Optional pagination params — body is safe to omit (defaults to page 1 of 25).
+  let limit = 25;
+  let offset = 0;
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (typeof body?.limit === "number") limit = Math.min(Math.max(1, body.limit), 50);
+    if (typeof body?.offset === "number") offset = Math.min(Math.max(0, body.offset), 500);
+  } catch { /* use defaults */ }
+
   const clientId = Deno.env.get("IGDB_CLIENT_ID");
   const clientSecret = Deno.env.get("IGDB_CLIENT_SECRET");
 
@@ -127,7 +141,8 @@ Deno.serve(async (req) => {
     `fields name,slug,cover.url,rating,rating_count,follows,first_release_date,version_parent,parent_game; ` +
     `where rating_count > 500 & version_parent = null & parent_game = null & cover != null; ` +
     `sort follows desc; ` +
-    `limit 12;`;
+    `limit ${limit}; ` +
+    `offset ${offset};`;
 
   let igdbRes: Response;
   try {
