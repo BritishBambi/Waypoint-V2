@@ -18,9 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-zinc-950 text-white antialiased">
         <Providers>
+          <Toaster />
           <Nav />
           {children}
-          <Toaster />
         </Providers>
       </body>
     </html>

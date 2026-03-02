@@ -9,9 +9,13 @@ import { toast } from "@/lib/toast";
 
 export function WelcomeToast({ displayName }: { displayName: string }) {
   useEffect(() => {
-    toast(`Welcome back, ${displayName}! 👋`);
-    // Remove the query param from the address bar without a navigation.
-    window.history.replaceState(null, "", "/");
+    // 300 ms delay gives the Toaster time to mount and register its listener
+    // before the toast is pushed into the module-level store.
+    const timer = setTimeout(() => {
+      toast(`Welcome back, ${displayName}! 👋`);
+      window.history.replaceState(null, "", "/");
+    }, 300);
+    return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
