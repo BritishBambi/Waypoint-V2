@@ -361,52 +361,51 @@ export default async function Home() {
 
   // ── Logged-out state ─────────────────────────────────────────────────────
 
-  // Trending: fetch a batch of recent logs to aggregate by game_id in JS.
-  const { data: logsRaw } = await supabase
-    .from("game_logs")
-    .select("game_id, games(id, slug, title, cover_url)")
-    .limit(200);
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anonKey    = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  type LogRow = { game_id: number; games: GameStub | null };
-  const logRows = (logsRaw ?? []) as unknown as LogRow[];
-  const countMap = new Map<number, { count: number; game: GameStub }>();
-  for (const row of logRows) {
-    if (!row.games) continue;
-    const entry = countMap.get(row.game_id);
-    if (entry) {
-      entry.count += 1;
-    } else {
-      countMap.set(row.game_id, { count: 1, game: row.games });
+  // Fetch popular games — used for both the Popular Right Now carousel and
+  // (after random selection) the hero background.
+  let popularGames: GameStub[] = [];
+  try {
+    const popRes = await fetch(`${supabaseUrl}/functions/v1/igdb-popular`, {
+      method: "POST",
+      headers: {
+        "apikey": anonKey,
+        "Authorization": `Bearer ${anonKey}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+    if (popRes.ok) {
+      const data = await popRes.json();
+      popularGames = (data.results as GameStub[]) ?? [];
     }
+  } catch {
+    // Non-fatal — popular section falls back to empty.
   }
-  const trendingGames = [...countMap.values()]
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6)
-    .map((v) => v.game);
 
-  // Hero artwork: fetch a high-res landscape image for the most-logged game.
+  // Hero background: pick a random game from the top 5, fetch its detail
+  // (screenshots-first — width ≥ 1280, height ≥ 700; landscape artwork fallback
+  // with ratio 1.7–2.5, height ≥ 700). Falls back to dark gradient if absent.
   let heroArtworkUrl: string | null = null;
-  const heroGame = trendingGames[0];
-  if (heroGame) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  if (popularGames.length > 0) {
+    const pool     = popularGames.slice(0, Math.min(5, popularGames.length));
+    const heroGame = pool[Math.floor(Math.random() * pool.length)];
     try {
-      const artRes = await fetch(
-        `${supabaseUrl}/functions/v1/igdb-artwork`,
-        {
-          method: "POST",
-          headers: {
-            "apikey": anonKey,
-            "Authorization": `Bearer ${anonKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ game_id: heroGame.id }),
-          next: { revalidate: 3600 },
-        }
-      );
-      if (artRes.ok) {
-        const data = await artRes.json();
-        heroArtworkUrl = data.artwork_url ?? null;
+      const detailRes = await fetch(`${supabaseUrl}/functions/v1/igdb-game-detail`, {
+        method: "POST",
+        headers: {
+          "apikey": anonKey,
+          "Authorization": `Bearer ${anonKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ slug: heroGame.slug }),
+        next: { revalidate: 3600 },
+      });
+      if (detailRes.ok) {
+        const data = await detailRes.json();
+        heroArtworkUrl = (data.game?.banner_url as string | null) ?? null;
       }
     } catch {
       // Non-fatal — fall back to the dark solid background.
@@ -499,40 +498,14 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── Trending ────────────────────────────────────────────────────────── */}
-      {trendingGames.length > 0 && (
+      {/* ── Popular Right Now ───────────────────────────────────────────────── */}
+      {popularGames.length > 0 && (
         <section className="bg-zinc-950 px-4 pb-20">
           <div className="mx-auto max-w-6xl">
             <h2 className="mb-6 text-base font-semibold text-white">
               Popular Right Now
             </h2>
-            <div className="flex gap-4 overflow-x-auto pb-2">
-              {trendingGames.map((game) => (
-                <Link
-                  key={game.id}
-                  href={`/games/${game.slug}`}
-                  className="group shrink-0"
-                >
-                  <div className="relative aspect-[2/3] w-28 overflow-hidden rounded-lg bg-zinc-800">
-                    {game.cover_url ? (
-                      <Image
-                        src={game.cover_url.replace(/\/t_[^/]+\//, "/t_720p/")}
-                        alt={game.title}
-                        fill
-                        sizes="112px"
-                        quality={90}
-                        className="object-cover transition-transform duration-200 group-hover:scale-105"
-                      />
-                    ) : (
-                      <NoCover />
-                    )}
-                  </div>
-                  <p className="mt-1.5 w-28 line-clamp-2 text-xs text-zinc-400 transition-colors group-hover:text-white">
-                    {game.title}
-                  </p>
-                </Link>
-              ))}
-            </div>
+            <PopularCarousel games={popularGames} />
           </div>
         </section>
       )}
