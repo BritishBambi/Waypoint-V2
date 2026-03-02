@@ -221,7 +221,7 @@ function RankedList({ entries }: { entries: EntryWithGame[] }) {
               <div className="relative aspect-[2/3] w-14 overflow-hidden rounded-lg bg-zinc-800 transition-transform duration-150 group-hover:scale-105">
                 {games.cover_url ? (
                   <Image
-                    src={igdbCover(games.cover_url, "t_cover_small")!}
+                    src={igdbCover(games.cover_url, "t_cover_big")!}
                     alt={games.title}
                     fill
                     sizes="56px"

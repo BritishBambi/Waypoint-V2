@@ -143,7 +143,7 @@ export function ListForm({ mode, listId, username, initialData }: ListFormProps)
             is_public: isPublic,
             is_ranked: isRanked,
             user_id: user.id,
-          })
+          } as any)
           .select("id")
           .single();
 
@@ -184,17 +184,20 @@ export function ListForm({ mode, listId, username, initialData }: ListFormProps)
       }
 
       // Replace entries: delete existing, then re-insert with updated positions.
+      if (!finalListId) throw new Error("Missing list id");
       await supabase.from("list_entries").delete().eq("list_id", finalListId);
 
       if (entries.length > 0) {
-        const { error: entriesError } = await supabase.from("list_entries").insert(
-          entries.map((e, i) => ({
-            list_id: finalListId,
-            game_id: e.game_id,
-            position: isRanked ? i + 1 : null,
-            note: e.note.trim() || null,
-          }))
-        );
+        const { error: entriesError } = await supabase
+          .from("list_entries")
+          .insert(
+            entries.map((e, i) => ({
+              list_id: finalListId,
+              game_id: e.game_id,
+              position: isRanked ? i + 1 : null,
+              note: e.note.trim() || null,
+            })) as any
+          );
         if (entriesError) throw entriesError;
       }
 
@@ -335,7 +338,7 @@ export function ListForm({ mode, listId, username, initialData }: ListFormProps)
                       <div className="relative aspect-[2/3] w-8 shrink-0 overflow-hidden rounded bg-zinc-800">
                         {game.cover_url && (
                           <Image
-                            src={igdbCover(game.cover_url, "t_cover_small")!}
+                            src={igdbCover(game.cover_url, "t_cover_big")!}
                             alt={game.title}
                             fill
                             sizes="32px"
@@ -402,7 +405,7 @@ export function ListForm({ mode, listId, username, initialData }: ListFormProps)
                 {entry.cover_url && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={igdbCover(entry.cover_url, "t_cover_small")!}
+                    src={igdbCover(entry.cover_url, "t_cover_big")!}
                     alt={entry.title}
                     draggable={false}
                     className="h-full w-full object-cover"

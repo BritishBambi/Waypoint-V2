@@ -37,7 +37,7 @@ export function ListLikeButton({
     } else {
       await supabase
         .from("list_likes")
-        .insert({ list_id: listId, user_id: currentUserId });
+        .insert({ list_id: listId, user_id: currentUserId } as any);
       setLiked(true);
       setCount((c) => c + 1);
     }

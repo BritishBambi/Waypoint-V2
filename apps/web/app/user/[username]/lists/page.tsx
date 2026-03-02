@@ -8,20 +8,6 @@ import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
 import { ListCard, ListRow } from "@/components/ListCard";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type ListRow = {
-  id: string;
-  title: string;
-  is_ranked: boolean;
-  is_public: boolean;
-  created_at: string;
-  list_entries: Array<{
-    position: number | null;
-    games: { cover_url: string | null } | null;
-  }>;
-  list_likes: Array<{ id: string }>;
-};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 

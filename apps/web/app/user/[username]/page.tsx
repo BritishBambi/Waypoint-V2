@@ -126,7 +126,7 @@ export default async function UserProfilePage({
     favsRes,
     followerRes,
     followingRes,
-    listsCountRes,
+    publicListsCountRes,
     recentListsRes,
   ] =
     await Promise.all([
@@ -158,7 +158,7 @@ export default async function UserProfilePage({
         .select("*", { count: "exact", head: true })
         .eq("followee_id", profile.id),
 
-      // Count of lists owned by this user (only public for others)
+      // Public lists count (used when viewer is not the owner)
       supabase
         .from("lists")
         .select("id", { count: "exact", head: true })
@@ -191,7 +191,8 @@ export default async function UserProfilePage({
   const rawFavourites = favsRes.data;
   const followerCount = followerRes.count ?? 0;
   const followingCount = followingRes.count ?? 0;
-  const listsCount = listsCountRes.count ?? 0;
+  // we'll compute the final lists count after checking ownership
+  let listsCount = publicListsCountRes.count ?? 0;
 
   const logs      = (rawLogs      ?? []) as unknown as LogWithGame[];
   const reviews   = (rawReviews   ?? []) as unknown as ReviewWithGame[];
@@ -219,6 +220,16 @@ export default async function UserProfilePage({
   const currentlyPlaying = logs.filter((l) => l.status === "playing");
   const totalPlayed = logs.filter((l) => l.status === "played").length;
   const isOwnProfile = user?.id === profile.id;
+
+  // if we're looking at our own profile, count *all* lists rather than just
+  // the public ones that we fetched in the parallel block above.
+  if (isOwnProfile) {
+    const { count } = await supabase
+      .from("lists")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", profile.id);
+    listsCount = count ?? 0;
+  }
   const displayName = profile.display_name ?? profile.username;
 
   // ── 4. Follow status (sequential — depends on isOwnProfile) ─────────────────
