@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { UserMenu } from "@/components/UserMenu";
+import { NotificationBell } from "@/components/NotificationBell";
 
 
 export async function Nav() {
@@ -32,8 +33,11 @@ export async function Nav() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {username ? (
-            <UserMenu username={username} avatarUrl={avatarUrl} />
+          {username && user ? (
+            <>
+              <NotificationBell userId={user.id} />
+              <UserMenu username={username} avatarUrl={avatarUrl} />
+            </>
           ) : (
             <Link
               href="/login"

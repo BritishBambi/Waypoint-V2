@@ -65,39 +65,6 @@ export type Database = {
           },
         ]
       }
-      follows: {
-        Row: {
-          created_at: string
-          followee_id: string
-          follower_id: string
-        }
-        Insert: {
-          created_at?: string
-          followee_id: string
-          follower_id: string
-        }
-        Update: {
-          created_at?: string
-          followee_id?: string
-          follower_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "follows_followee_id_fkey"
-            columns: ["followee_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "follows_follower_id_fkey"
-            columns: ["follower_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       favourite_games: {
         Row: {
           created_at: string
@@ -131,6 +98,39 @@ export type Database = {
           {
             foreignKeyName: "favourite_games_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      follows: {
+        Row: {
+          created_at: string
+          followee_id: string
+          follower_id: string
+        }
+        Insert: {
+          created_at?: string
+          followee_id: string
+          follower_id: string
+        }
+        Update: {
+          created_at?: string
+          followee_id?: string
+          follower_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follows_followee_id_fkey"
+            columns: ["followee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follows_follower_id_fkey"
+            columns: ["follower_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -304,6 +304,54 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          actor_id: string
+          comment_id: string | null
+          created_at: string
+          id: string
+          read: boolean
+          review_id: string | null
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          actor_id: string
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          review_id?: string | null
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          actor_id?: string
+          comment_id?: string | null
+          created_at?: string
+          id?: string
+          read?: boolean
+          review_id?: string | null
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "review_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -339,6 +387,81 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      review_comments: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          review_id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          review_id: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          review_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_comments_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_likes: {
+        Row: {
+          created_at: string
+          id: string
+          review_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          review_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          review_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_likes_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reviews: {
         Row: {
@@ -409,10 +532,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      upsert_games: {
+        Args: { game_data: Json }
+        Returns: {
+          error: string
+          success: boolean
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      notification_type: "follow" | "review_like" | "review_comment"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -539,6 +668,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      notification_type: ["follow", "review_like", "review_comment"],
+    },
   },
 } as const
