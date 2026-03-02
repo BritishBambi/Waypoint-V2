@@ -189,13 +189,14 @@ Deno.serve(async (req) => {
   // Normalised query used for title-match boosting in the sort below.
   const queryLower = query.toLowerCase();
 
-  const results = games
+  // ── Step 1: Filter ─────────────────────────────────────────────────────────
+  const filtered: IgdbGame[] = games
     // Exclude editions of other games (Ultimate Edition, Day One, etc.).
     .filter((g) => g.version_parent == null)
     // Exclude DLC, expansions, updates — they have a parent_game reference.
-    // Exception: allow entries with rating_count >= 200, which indicates a
-    // substantial standalone release that IGDB has miscategorised (e.g.
-    // Minecraft Bedrock Edition is marked parent_game of Java Edition).
+    // Exception: allow entries with rating_count >= 200 — these are substantial
+    // standalone releases that IGDB has miscategorised as children of another
+    // entry (e.g. Minecraft Bedrock Edition has parent_game pointing to Java Ed).
     .filter((g) => g.parent_game == null || (g.rating_count != null && g.rating_count >= 200))
     // Must have a cover — no cover is a strong signal of a junk/test entry.
     .filter((g) => !!g.cover?.url)
@@ -205,7 +206,48 @@ Deno.serve(async (req) => {
     .filter((g) => {
       const lower = g.name.toLowerCase();
       return !ADULT_KEYWORDS.some((kw) => lower.includes(kw));
-    })
+    });
+
+  // ── Step 2: Resolve parent games for exception entries ─────────────────────
+  // Entries that passed via the parent_game exception are ports/variants that
+  // IGDB has linked to a canonical base game. Fetch that base game and swap it
+  // in so the canonical entry appears instead of the variant (e.g. replace
+  // Minecraft Bedrock Edition with the canonical Java/original Minecraft entry).
+  const exceptionEntries = filtered.filter((g) => g.parent_game != null);
+  if (exceptionEntries.length > 0) {
+    const parentIds = [...new Set(exceptionEntries.map((g) => g.parent_game!))];
+    const existingIds = new Set(filtered.map((g) => g.id));
+    try {
+      const parentRes = await fetch("https://api.igdb.com/v4/games", {
+        method: "POST",
+        headers: {
+          "Client-ID": clientId,
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "text/plain",
+        },
+        body:
+          `fields name,slug,cover.url,summary,genres.name,platforms.name,` +
+          `first_release_date,rating,rating_count,parent_game,version_parent; ` +
+          `where id = (${parentIds.join(",")}); limit ${parentIds.length};`,
+      });
+      if (parentRes.ok) {
+        const parents: IgdbGame[] = await parentRes.json();
+        for (const parent of parents) {
+          // Only swap in the parent if it's a proper standalone entry with a cover.
+          if (!parent.cover?.url || parent.parent_game != null || existingIds.has(parent.id)) continue;
+          const childIdx = filtered.findIndex((g) => g.parent_game === parent.id);
+          if (childIdx === -1) continue;
+          filtered.splice(childIdx, 1, parent);
+          existingIds.add(parent.id);
+        }
+      }
+    } catch {
+      // Parent lookup failure is non-fatal — keep original exception entries.
+    }
+  }
+
+  // ── Step 3: Sort and transform ─────────────────────────────────────────────
+  const results = filtered
     // Three-tier sort:
     //   1. Exact title match (e.g. "Minecraft" when query is "minecraft")
     //   2. Title starts with query (e.g. "Zelda: …" when query is "zelda")
@@ -216,6 +258,8 @@ Deno.serve(async (req) => {
       const aExact = aName === queryLower ? 1 : 0;
       const bExact = bName === queryLower ? 1 : 0;
       if (bExact !== aExact) return bExact - aExact;
+      // Both exact matches — most-rated wins.
+      if (aExact && bExact) return (b.rating_count ?? 0) - (a.rating_count ?? 0);
       const aStarts = aName.startsWith(queryLower) ? 1 : 0;
       const bStarts = bName.startsWith(queryLower) ? 1 : 0;
       if (bStarts !== aStarts) return bStarts - aStarts;
