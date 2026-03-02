@@ -227,7 +227,7 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
     if (!existingProfile) {
       // Replicate exactly what handle_new_user does: id + deterministic username.
       const generatedUsername = "user_" + userId.replace(/-/g, "").slice(0, 12);
-      const { error: profileErr } = await supabase
+      const { error: profileErr } = await (supabase as any)
         .from("profiles")
         .insert({ id: userId, username: generatedUsername });
 
@@ -243,7 +243,7 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
     // Using upsert with onConflict on the unique (user_id, game_id) pair means
     // "create if new, update status if existing" — a single operation that
     // handles both the first log and every edit.
-    const { data: logData, error: logErr } = await supabase
+    const { data: logData, error: logErr } = await (supabase as any)
       .from("game_logs")
       .upsert(
         { user_id: userId, game_id: game.id, status },
@@ -266,7 +266,7 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
     // "updating an existing review" without needing a separate lookup.
     // Gate on rating OR note — a note without a star rating is still a review.
     if (rating > 0 || note.trim()) {
-      const { error: reviewErr } = await supabase
+      const { error: reviewErr } = await (supabase as any)
         .from("reviews")
         .upsert(
           {
@@ -293,7 +293,7 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
     // over time; they are not updated like the log or review). We only insert
     // if there's actual text — silent on failure to avoid blocking the UX.
     if (note.trim()) {
-      const { error: diaryErr } = await supabase.from("diary_entries").insert({
+      const { error: diaryErr } = await (supabase as any).from("diary_entries").insert({
         log_id: logId,
         user_id: userId,
         body: note.trim(),

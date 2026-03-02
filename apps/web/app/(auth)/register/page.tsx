@@ -75,12 +75,15 @@ export default function RegisterPage() {
       return;
     }
 
-    if (data.session) {
+    if (data.session && data.user) {
       // Email confirmation is disabled — session is available immediately.
       // Upsert the profile row; this is a safe no-op if the handle_new_user
       // trigger already created it.
-      await supabase.from("profiles").upsert(
-        { id: data.user!.id, username: fields.username },
+      // (supabase as any) works around a `never` type inference bug in
+      // @supabase/supabase-js when the generated Database type includes
+      // __InternalSupabase: { PostgrestVersion: "14.1" }.
+      await (supabase as any).from("profiles").upsert(
+        { id: data.user.id, username: fields.username },
         { onConflict: "id", ignoreDuplicates: true }
       );
       router.push("/dashboard");

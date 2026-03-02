@@ -10,6 +10,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
+import type { Tables } from "@waypoint/types";
 import { LikeButton } from "./LikeButton";
 import { CommentsSection } from "./CommentsSection";
 
@@ -54,8 +55,9 @@ export default async function ReviewDetailPage({ params }: Props) {
 
   if (!rawReview) notFound();
 
-  // Cast — PostgrestVersion 14.1 collapses join types; see project MEMORY.
-  const review = rawReview as typeof rawReview & {
+  // Cast — PostgrestVersion 14.1 makes maybeSingle() return never; cast to the
+  // concrete row type + joined profiles. See project MEMORY.
+  const review = rawReview as Tables<"reviews"> & {
     profiles: { username: string | null; display_name: string | null; avatar_url: string | null } | null;
   };
 

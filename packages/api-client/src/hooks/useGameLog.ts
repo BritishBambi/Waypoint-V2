@@ -22,7 +22,7 @@ export const gameLogKey = (gameId: number, userId: string) =>
 // value immediately and refetches in the background.
 
 export function useGameLog(
-  client: SupabaseClient,
+  client: SupabaseClient<any, any, any>,
   gameId: number,
   userId: string | null,
   initialData?: LogRow | null,

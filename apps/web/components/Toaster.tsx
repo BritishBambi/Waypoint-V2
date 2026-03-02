@@ -6,7 +6,10 @@ import { subscribeToasts, type ToastEntry } from "@/lib/toast";
 export function Toaster() {
   const [entries, setEntries] = useState<ToastEntry[]>([]);
 
-  useEffect(() => subscribeToasts(setEntries), []);
+  useEffect(() => {
+    const unsubscribe = subscribeToasts(setEntries);
+    return () => { unsubscribe(); };
+  }, []);
 
   if (entries.length === 0) return null;
 

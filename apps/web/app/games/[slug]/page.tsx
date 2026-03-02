@@ -168,7 +168,7 @@ export default async function GameDetailPage({ params }: Props) {
       .eq("game_id", game.id)
       .maybeSingle();
 
-    existingLog = logRow ?? null;
+    existingLog = (logRow as LogSummary | null) ?? null;
 
     if (existingLog) {
       const { data: reviewRow } = await supabase
@@ -177,7 +177,7 @@ export default async function GameDetailPage({ params }: Props) {
         .eq("log_id", existingLog.id)
         .maybeSingle();
 
-      existingReview = reviewRow ?? null;
+      existingReview = (reviewRow as Pick<Tables<"reviews">, "id" | "rating" | "body"> | null) ?? null;
     }
   }
 

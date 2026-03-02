@@ -175,7 +175,7 @@ function WriteReviewForm({
 
     const supabase = createClient();
 
-    const { error: insertErr } = await supabase.from("reviews").insert({
+    const { error: insertErr } = await (supabase as any).from("reviews").insert({
       log_id: logId,
       user_id: userId,
       game_id: gameId,

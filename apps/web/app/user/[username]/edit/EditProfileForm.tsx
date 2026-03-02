@@ -249,7 +249,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     };
     if (newAvatarUrl !== undefined) payload.avatar_url = newAvatarUrl;
 
-    const { error: updateErr } = await supabase
+    const { error: updateErr } = await (supabase as any)
       .from("profiles")
       .update(payload)
       .eq("id", profile.id);
@@ -272,7 +272,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       }));
 
     if (gamesToUpsert.length > 0) {
-      const { data, error: upsertErr } = await supabase.rpc("upsert_games", {
+      const { data, error: upsertErr } = await (supabase as any).rpc("upsert_games", {
         game_data: gamesToUpsert,
       });
       if (upsertErr || !data?.[0]?.success) {
@@ -284,7 +284,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     }
 
     // Now delete old favourite_games entries and insert new ones.
-    const { error: delErr } = await supabase
+    const { error: delErr } = await (supabase as any)
       .from("favourite_games")
       .delete()
       .eq("user_id", profile.id);
@@ -301,7 +301,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
     if (favInserts.length > 0) {
-      const { error: insErr } = await supabase.from("favourite_games").insert(favInserts);
+      const { error: insErr } = await (supabase as any).from("favourite_games").insert(favInserts);
       if (insErr) {
         setErrors({ _form: insErr.message });
         setSaving(false);

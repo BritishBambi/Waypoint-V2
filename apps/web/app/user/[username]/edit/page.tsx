@@ -4,6 +4,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@waypoint/types";
 import { EditProfileForm } from "./EditProfileForm";
 
 export default async function EditProfilePage({
@@ -15,7 +16,7 @@ export default async function EditProfilePage({
   const supabase = await createClient();
 
   // Run auth check and profile lookup in parallel.
-  const [{ data: { user } }, { data: profile }] = await Promise.all([
+  const [{ data: { user } }, { data: rawProfile }] = await Promise.all([
     supabase.auth.getUser(),
     supabase
       .from("profiles")
@@ -23,6 +24,9 @@ export default async function EditProfilePage({
       .eq("username", username)
       .maybeSingle(),
   ]);
+
+  // Cast — PostgrestVersion 14.1 makes maybeSingle() return never; see project MEMORY.
+  const profile = rawProfile as Tables<"profiles"> | null;
 
   // Not logged in, or profile doesn't exist, or logged-in user isn't the owner
   // → silently redirect to the public profile page.
