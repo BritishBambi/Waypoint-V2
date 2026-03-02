@@ -27,8 +27,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    window.location.href = "/?welcome=1";
   }
 
   async function handleDiscord() {

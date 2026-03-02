@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   // Allow deep-linking back to a specific page after auth
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = searchParams.get("next") ?? "/?welcome=1";
 
   // ── OAuth / PKCE code flow (Discord, GitHub, etc.) ──────────────────────
   const code = searchParams.get("code");

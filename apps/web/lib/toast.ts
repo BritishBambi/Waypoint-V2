@@ -17,7 +17,7 @@ function emit() {
   listeners.forEach((l) => l(entries));
 }
 
-/** Show a toast. Automatically dismissed after 3.5 seconds. */
+/** Show a toast. Automatically dismissed after 4 seconds. */
 export function toast(message: string, kind: ToastEntry["kind"] = "success") {
   const id = Math.random().toString(36).slice(2, 9);
   entries = [...entries, { id, message, kind }];
@@ -25,7 +25,13 @@ export function toast(message: string, kind: ToastEntry["kind"] = "success") {
   setTimeout(() => {
     entries = entries.filter((e) => e.id !== id);
     emit();
-  }, 3500);
+  }, 4000);
+}
+
+/** Manually dismiss a specific toast by id. */
+export function dismiss(id: string) {
+  entries = entries.filter((e) => e.id !== id);
+  emit();
 }
 
 /** Subscribe to toast changes. Returns an unsubscribe function (for useEffect). */

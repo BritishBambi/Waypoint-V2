@@ -10,6 +10,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
 import { PopularCarousel } from "./PopularCarousel";
+import { WelcomeToast } from "@/components/WelcomeToast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,7 +89,11 @@ function formatDate(iso: string): string {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -214,8 +219,11 @@ export default async function Home() {
     const ownLogs     = (ownRes.data ?? []) as unknown as OwnLog[];
     const isFollowingNobody = followedIds.length === 0;
 
+    const showWelcome = searchParams.welcome === "1";
+
     return (
       <main className="mx-auto max-w-6xl px-4 py-10">
+        {showWelcome && <WelcomeToast displayName={displayName} />}
 
         {/* ── Welcome bar ──────────────────────────────────────────────────── */}
         <section className="mb-10">
