@@ -7,6 +7,8 @@ function isPublicRoute(pathname: string) {
   return (
     PUBLIC_ROUTES.includes(pathname) ||
     pathname.startsWith("/games") ||
+    pathname.startsWith("/search") ||
+    pathname.startsWith("/user/") ||
     pathname.startsWith("/auth/") // OAuth callback and any future auth helpers
   );
 }

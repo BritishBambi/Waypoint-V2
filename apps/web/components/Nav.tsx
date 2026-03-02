@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { UserMenu } from "@/components/UserMenu";
 
+
 export async function Nav() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -31,8 +32,15 @@ export async function Nav() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {username && (
+          {username ? (
             <UserMenu username={username} avatarUrl={avatarUrl} />
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-full border border-zinc-700 px-4 py-1.5 text-sm text-zinc-300 transition-colors hover:border-zinc-400 hover:text-white"
+            >
+              Log In
+            </Link>
           )}
 
           <Link

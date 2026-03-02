@@ -462,13 +462,13 @@ export default async function Home() {
               href="/register"
               className="rounded-lg bg-violet-600 px-8 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-violet-500"
             >
-              Get Started
+              Sign Up
             </Link>
             <Link
-              href="/search"
+              href="/login"
               className="rounded-lg border border-zinc-500 px-8 py-3 text-sm font-semibold text-zinc-200 transition-colors hover:border-white hover:text-white"
             >
-              Browse Games
+              Log In
             </Link>
           </div>
         </div>
