@@ -1,5 +1,5 @@
 // apps/web/app/activity/page.tsx
-// Full friend activity feed — all game logs from followed users, 48 at a time.
+// Full friend activity feed — all game logs from followed users, 30 per page.
 // Auth-required: middleware redirects unauthenticated visitors to /login.
 
 import Link from "next/link";
@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ActivityFeed, type FeedItem } from "./ActivityFeed";
 
-const PAGE_SIZE = 48;
+const PAGE_SIZE = 30;
 
 export default async function ActivityPage() {
   const supabase = await createClient();
@@ -17,19 +17,10 @@ export default async function ActivityPage() {
 
   if (!user) redirect("/login");
 
-  // Fetch follows and initial feed in parallel.
-  const [followRes, profileRes] = await Promise.all([
-    supabase
-      .from("follows")
-      .select("followee_id")
-      .eq("follower_id", user.id),
-
-    supabase
-      .from("profiles")
-      .select("display_name, username")
-      .eq("id", user.id)
-      .single(),
-  ]);
+  const followRes = await supabase
+    .from("follows")
+    .select("followee_id")
+    .eq("follower_id", user.id);
 
   const followedIds = (
     (followRes.data ?? []) as Array<{ followee_id: string }>
@@ -38,24 +29,33 @@ export default async function ActivityPage() {
   const isFollowingNobody = followedIds.length === 0;
 
   let initialItems: FeedItem[] = [];
-  let initialHasMore = false;
+  let totalCount = 0;
 
   if (!isFollowingNobody) {
-    const { data: rawFeed } = await supabase
-      .from("game_logs")
-      .select(
-        "id, status, created_at, updated_at, " +
-          "games(id, slug, title, cover_url), " +
-          "profiles(username, display_name, avatar_url), " +
-          "reviews!log_id(rating)"
-      )
-      .in("user_id", followedIds)
-      .neq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(PAGE_SIZE);
+    // Fetch first page and total count in parallel.
+    const [feedRes, countRes] = await Promise.all([
+      supabase
+        .from("game_logs")
+        .select(
+          "id, status, created_at, updated_at, " +
+            "games(id, slug, title, cover_url), " +
+            "profiles(username, display_name, avatar_url), " +
+            "reviews!log_id(rating)"
+        )
+        .in("user_id", followedIds)
+        .neq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(PAGE_SIZE),
 
-    initialItems = (rawFeed ?? []) as unknown as FeedItem[];
-    initialHasMore = initialItems.length === PAGE_SIZE;
+      supabase
+        .from("game_logs")
+        .select("*", { count: "exact", head: true })
+        .in("user_id", followedIds)
+        .neq("user_id", user.id),
+    ]);
+
+    initialItems = (feedRes.data ?? []) as unknown as FeedItem[];
+    totalCount   = countRes.count ?? 0;
   }
 
   return (
@@ -109,7 +109,7 @@ export default async function ActivityPage() {
           initialItems={initialItems}
           followedIds={followedIds}
           userId={user.id}
-          initialHasMore={initialHasMore}
+          totalCount={totalCount}
         />
       )}
 
