@@ -22,14 +22,16 @@ export type GameDetail = Omit<Tables<"games">, "igdb_synced_at"> & {
   banner_url: string | null;
 };
 
-// Review row joined with the author's public profile columns + like count.
-// like_count is computed server-side from review_likes (migration 0007).
+// Review row joined with the author's public profile columns + social counts.
+// like_count and comment_count are computed server-side from the review_likes
+// and review_comments tables (migration 0007).
 export type ReviewWithAuthor = Tables<"reviews"> & {
   profiles: Pick<
     Tables<"profiles">,
     "username" | "display_name" | "avatar_url"
   > | null;
   like_count: number;
+  comment_count: number;
 };
 
 // Serialisable slice of a game_log row passed to Client Components.
@@ -117,19 +119,31 @@ export default async function GameDetailPage({ params }: Props) {
 
   const baseReviews = (rawReviews ?? []) as Omit<ReviewWithAuthor, "like_count">[];
 
-  // Fetch like counts for all displayed reviews in one query.
-  // review_likes is new (migration 0007) so we use (supabase as any) until
-  // types are regenerated with `pnpm generate:types`.
+  // Fetch like and comment counts for all displayed reviews.
+  // review_likes and review_comments are new (migration 0007) so we use
+  // (supabase as any) until types are regenerated with `pnpm generate:types`.
   let likeCounts: Record<string, number> = {};
+  let commentCounts: Record<string, number> = {};
   if (baseReviews.length > 0) {
     const reviewIds = baseReviews.map((r) => r.id);
-    const { data: likes } = await (supabase as any)
-      .from("review_likes")
-      .select("review_id")
-      .in("review_id", reviewIds);
+    const [{ data: likes }, { data: comments }] = await Promise.all([
+      (supabase as any)
+        .from("review_likes")
+        .select("review_id")
+        .in("review_id", reviewIds),
+      (supabase as any)
+        .from("review_comments")
+        .select("review_id")
+        .in("review_id", reviewIds),
+    ]);
     if (likes) {
       for (const row of likes as { review_id: string }[]) {
         likeCounts[row.review_id] = (likeCounts[row.review_id] ?? 0) + 1;
+      }
+    }
+    if (comments) {
+      for (const row of comments as { review_id: string }[]) {
+        commentCounts[row.review_id] = (commentCounts[row.review_id] ?? 0) + 1;
       }
     }
   }
@@ -137,6 +151,7 @@ export default async function GameDetailPage({ params }: Props) {
   const reviews: ReviewWithAuthor[] = baseReviews.map((r) => ({
     ...r,
     like_count: likeCounts[r.id] ?? 0,
+    comment_count: commentCounts[r.id] ?? 0,
   }));
 
   // Fetch the user's existing game_log (if logged in).

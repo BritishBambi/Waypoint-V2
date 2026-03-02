@@ -52,21 +52,31 @@ export function ReviewSection({
 
     if (!data) return;
 
-    const base = data as Omit<ReviewWithAuthor, "like_count">[];
+    const base = data as Omit<ReviewWithAuthor, "like_count" | "comment_count">[];
     const ids = base.map((r) => r.id);
-    let counts: Record<string, number> = {};
+    let likeCounts: Record<string, number> = {};
+    let commentCounts: Record<string, number> = {};
     if (ids.length > 0) {
-      const { data: likes } = await (supabase as any)
-        .from("review_likes")
-        .select("review_id")
-        .in("review_id", ids);
+      const [{ data: likes }, { data: comments }] = await Promise.all([
+        (supabase as any).from("review_likes").select("review_id").in("review_id", ids),
+        (supabase as any).from("review_comments").select("review_id").in("review_id", ids),
+      ]);
       if (likes) {
         for (const row of likes as { review_id: string }[]) {
-          counts[row.review_id] = (counts[row.review_id] ?? 0) + 1;
+          likeCounts[row.review_id] = (likeCounts[row.review_id] ?? 0) + 1;
+        }
+      }
+      if (comments) {
+        for (const row of comments as { review_id: string }[]) {
+          commentCounts[row.review_id] = (commentCounts[row.review_id] ?? 0) + 1;
         }
       }
     }
-    setReviews(base.map((r) => ({ ...r, like_count: counts[r.id] ?? 0 })));
+    setReviews(base.map((r) => ({
+      ...r,
+      like_count: likeCounts[r.id] ?? 0,
+      comment_count: commentCounts[r.id] ?? 0,
+    })));
   }
 
   const canWrite = !!userId && !!existingLog && !hasReview;
@@ -266,7 +276,10 @@ function ReviewCard({ review }: { review: ReviewWithAuthor }) {
     : review.body;
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+    <Link
+      href={`/review/${review.id}`}
+      className="block rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:bg-zinc-800/60"
+    >
       {/* Author + meta */}
       <div className="mb-3 flex items-start gap-3">
         {/* Avatar */}
@@ -286,33 +299,38 @@ function ReviewCard({ review }: { review: ReviewWithAuthor }) {
           )}
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            {/* Reviewer name — links to full review */}
-            <Link
-              href={`/review/${review.id}`}
-              className="text-sm font-medium text-white transition-colors hover:text-indigo-400"
-            >
-              {displayName}
-            </Link>
-            {author?.username && author.username !== displayName && (
-              <span className="text-xs text-zinc-500">@{author.username}</span>
+        <div className="flex flex-1 min-w-0 items-start justify-between gap-4">
+          {/* Left: name / username / date */}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="text-sm font-medium text-white">{displayName}</span>
+              {author?.username && author.username !== displayName && (
+                <span className="text-xs text-zinc-500">@{author.username}</span>
+              )}
+            </div>
+            {dateStr && (
+              <p className="text-xs text-zinc-500">{dateStr}</p>
             )}
-            {/* Rating — also links to full review */}
-            <Link
-              href={`/review/${review.id}`}
-              className="ml-auto flex items-center gap-1 text-yellow-400 hover:opacity-80"
-            >
-              <StarFilledIcon className="h-3.5 w-3.5" />
-              <span className="text-sm font-semibold text-white">
-                {review.rating}
-              </span>
-              <span className="text-xs text-zinc-500">/5</span>
-            </Link>
           </div>
-          {dateStr && (
-            <p className="text-xs text-zinc-500">{dateStr}</p>
-          )}
+
+          {/* Right: star rating + social counts */}
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <div className="flex items-center gap-1 text-yellow-400">
+              <StarFilledIcon className="h-3.5 w-3.5" />
+              <span className="text-sm font-semibold text-white">{review.rating}</span>
+              <span className="text-xs text-zinc-500">/5</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-zinc-500">
+              <span className="flex items-center gap-1">
+                <HeartIcon className="h-3 w-3" />
+                {review.like_count}
+              </span>
+              <span className="flex items-center gap-1">
+                <ChatBubbleIcon className="h-3 w-3" />
+                {review.comment_count}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -321,26 +339,15 @@ function ReviewCard({ review }: { review: ReviewWithAuthor }) {
         <>
           <p className="text-sm leading-relaxed text-zinc-300">{bodyText}</p>
           {isTruncated && (
-            <Link
-              href={`/review/${review.id}`}
-              className="mt-2 inline-block text-xs font-medium text-indigo-400 hover:text-indigo-300"
-            >
+            <span className="mt-2 inline-block text-xs font-medium text-indigo-400">
               Read more
-            </Link>
+            </span>
           )}
         </>
       ) : (
         <p className="text-xs italic text-zinc-600">No written review.</p>
       )}
-
-      {/* Like count — static display; interactive version is on /review/[id] */}
-      {review.like_count > 0 && (
-        <div className="mt-3 flex items-center gap-1 text-xs text-zinc-500">
-          <HeartIcon className="h-3 w-3" />
-          <span>{review.like_count}</span>
-        </div>
-      )}
-    </div>
+    </Link>
   );
 }
 
@@ -504,6 +511,24 @@ function HeartIcon({ className }: { className?: string }) {
       aria-hidden="true"
     >
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+
+function ChatBubbleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   );
 }

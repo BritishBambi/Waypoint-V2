@@ -186,11 +186,15 @@ Deno.serve(async (req) => {
   // Adult content keywords — checked as substrings of the lowercased title.
   const ADULT_KEYWORDS = ["sex", "porn", "hentai", "eroge", "adult", "xxx"];
 
+
   const results = games
     // Exclude editions of other games (Ultimate Edition, Day One, etc.).
     .filter((g) => g.version_parent == null)
     // Exclude DLC, expansions, updates — they have a parent_game reference.
-    .filter((g) => g.parent_game == null)
+    // Exception: allow entries with rating_count >= 200, which indicates a
+    // substantial standalone release that IGDB has miscategorised (e.g.
+    // Minecraft Bedrock Edition is marked parent_game of Java Edition).
+    .filter((g) => g.parent_game == null || (g.rating_count != null && g.rating_count >= 200))
     // Must have a cover — no cover is a strong signal of a junk/test entry.
     .filter((g) => !!g.cover?.url)
     // Rating threshold: require ≥ 10 ratings, OR unrated (null) is allowed.
