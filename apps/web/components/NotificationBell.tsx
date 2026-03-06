@@ -4,6 +4,7 @@
 // Rendered in Nav when a user is logged in.
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -309,19 +310,30 @@ function RowWrapper({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   return (
-    <Link
-      href={href}
-      onClick={() => { onRead(); onClose(); }}
-      className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-zinc-900 ${unread ? "border-l-2 border-violet-500" : "border-l-2 border-transparent"}`}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => { onRead(); onClose(); router.push(href); }}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { onRead(); onClose(); router.push(href); } }}
+      className={`cursor-pointer flex items-start gap-3 px-4 py-3 transition-colors hover:bg-zinc-900 ${unread ? "border-l-2 border-violet-500" : "border-l-2 border-transparent"}`}
     >
       {children}
-    </Link>
+    </div>
   );
 }
 
-function Avatar({ url, username }: { url: string | null; username: string }) {
-  return url ? (
+function Avatar({
+  url,
+  username,
+  profileUsername,
+}: {
+  url: string | null;
+  username: string;
+  profileUsername?: string;
+}) {
+  const inner = url ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={url}
@@ -332,6 +344,18 @@ function Avatar({ url, username }: { url: string | null; username: string }) {
     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-700 text-xs font-semibold uppercase text-zinc-300">
       {username.charAt(0)}
     </div>
+  );
+
+  if (!profileUsername) return inner;
+
+  return (
+    <Link
+      href={`/user/${profileUsername}`}
+      onClick={(e) => e.stopPropagation()}
+      className="shrink-0"
+    >
+      {inner}
+    </Link>
   );
 }
 
@@ -355,7 +379,7 @@ function SingleRow({
         onRead={onRead}
         onClose={onClose}
       >
-        <Avatar url={actor?.avatar_url ?? null} username={actor?.username ?? "?"} />
+        <Avatar url={actor?.avatar_url ?? null} username={actor?.username ?? "?"} profileUsername={actor?.username} />
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-snug text-zinc-300">
             <span className="font-medium text-white">{name}</span>{" "}
@@ -383,7 +407,7 @@ function SingleRow({
         onRead={onRead}
         onClose={onClose}
       >
-        <Avatar url={actor?.avatar_url ?? null} username={actor?.username ?? "?"} />
+        <Avatar url={actor?.avatar_url ?? null} username={actor?.username ?? "?"} profileUsername={actor?.username} />
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-snug text-zinc-300">
             <span className="font-medium text-white">{name}</span>{" "}
@@ -441,7 +465,7 @@ function LikeBunchRow({
             className="absolute"
             style={{ left: i === 0 ? 0 : 12, zIndex: 2 - i }}
           >
-            <Avatar url={a.avatar_url} username={a.username} />
+            <Avatar url={a.avatar_url} username={a.username} profileUsername={a.username || undefined} />
           </div>
         ))}
       </div>

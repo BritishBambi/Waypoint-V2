@@ -144,11 +144,27 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
 
           {/* Author row */}
           <div className="mb-5 flex items-center gap-3">
-            <Avatar url={author?.avatar_url ?? null} name={displayName} size={40} />
+            {author?.username ? (
+              <Link href={`/user/${author.username}`} className="shrink-0">
+                <Avatar url={author?.avatar_url ?? null} name={displayName} size={40} />
+              </Link>
+            ) : (
+              <Avatar url={author?.avatar_url ?? null} name={displayName} size={40} />
+            )}
             <div>
-              <p className="font-medium text-white">{displayName}</p>
+              {author?.username ? (
+                <Link href={`/user/${author.username}`} className="font-medium text-white hover:underline">
+                  {displayName}
+                </Link>
+              ) : (
+                <p className="font-medium text-white">{displayName}</p>
+              )}
               <div className="flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
-                {author?.username && <span>@{author.username}</span>}
+                {author?.username && (
+                  <Link href={`/user/${author.username}`} className="transition-colors hover:text-zinc-300">
+                    @{author.username}
+                  </Link>
+                )}
                 {dateStr && <span>{dateStr}</span>}
               </div>
             </div>

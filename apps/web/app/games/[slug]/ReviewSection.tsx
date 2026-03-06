@@ -290,50 +290,68 @@ function ReviewCard({ review, isAuthor }: { review: ReviewWithAuthor; isAuthor: 
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900 transition-colors hover:bg-zinc-800/60">
-      {/* Clickable review content */}
-      <Link href={`/review/${review.id}`} className="block p-5 pb-3">
-        {/* Author + meta */}
-        <div className="mb-3 flex items-start gap-3">
-          {/* Avatar */}
+      {/* Author row — separate links so avatar/name go to profile, not review */}
+      <div className="flex items-start gap-3 p-5 pb-3">
+        {/* Avatar → user profile */}
+        {author?.username ? (
+          <Link href={`/user/${author.username}`} className="shrink-0">
+            <div className="relative h-9 w-9 overflow-hidden rounded-full bg-zinc-700">
+              {author?.avatar_url ? (
+                <Image
+                  src={author.avatar_url}
+                  alt={displayName}
+                  fill
+                  sizes="36px"
+                  className="object-cover"
+                />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-zinc-400">
+                  {initials}
+                </span>
+              )}
+            </div>
+          </Link>
+        ) : (
           <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-zinc-700">
-            {author?.avatar_url ? (
-              <Image
-                src={author.avatar_url}
-                alt={displayName}
-                fill
-                sizes="36px"
-                className="object-cover"
-              />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-zinc-400">
-                {initials}
-              </span>
+            <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-zinc-400">
+              {initials}
+            </span>
+          </div>
+        )}
+
+        <div className="flex flex-1 min-w-0 items-start justify-between gap-4">
+          {/* Left: name / username / date */}
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              {author?.username ? (
+                <Link href={`/user/${author.username}`} className="text-sm font-medium text-white hover:underline">
+                  {displayName}
+                </Link>
+              ) : (
+                <span className="text-sm font-medium text-white">{displayName}</span>
+              )}
+              {author?.username && author.username !== displayName && (
+                <Link href={`/user/${author.username}`} className="text-xs text-zinc-500 hover:text-zinc-300">
+                  @{author.username}
+                </Link>
+              )}
+            </div>
+            {dateStr && (
+              <p className="text-xs text-zinc-500">{dateStr}</p>
             )}
           </div>
 
-          <div className="flex flex-1 min-w-0 items-start justify-between gap-4">
-            {/* Left: name / username / date */}
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span className="text-sm font-medium text-white">{displayName}</span>
-                {author?.username && author.username !== displayName && (
-                  <span className="text-xs text-zinc-500">@{author.username}</span>
-                )}
-              </div>
-              {dateStr && (
-                <p className="text-xs text-zinc-500">{dateStr}</p>
-              )}
-            </div>
-
-            {/* Right: star rating */}
-            <div className="flex shrink-0 items-center gap-1 text-yellow-400">
-              <StarFilledIcon className="h-3.5 w-3.5" />
-              <span className="text-sm font-semibold text-white">{review.rating}</span>
-              <span className="text-xs text-zinc-500">/5</span>
-            </div>
+          {/* Right: star rating */}
+          <div className="flex shrink-0 items-center gap-1 text-yellow-400">
+            <StarFilledIcon className="h-3.5 w-3.5" />
+            <span className="text-sm font-semibold text-white">{review.rating}</span>
+            <span className="text-xs text-zinc-500">/5</span>
           </div>
         </div>
+      </div>
 
+      {/* Review body → link to review page */}
+      <Link href={`/review/${review.id}`} className="block px-5 pb-3">
         {/* Body */}
         {bodyText ? (
           <>

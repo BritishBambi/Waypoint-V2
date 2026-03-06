@@ -167,30 +167,48 @@ function CommentCard({
 
   return (
     <div className="flex gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-      {/* Avatar */}
-      <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-700">
-        {author?.avatar_url ? (
-          <Image
-            src={author.avatar_url}
-            alt={displayName}
-            fill
-            sizes="32px"
-            className="object-cover"
-          />
-        ) : (
+      {/* Avatar → user profile */}
+      {author?.username ? (
+        <Link href={`/user/${author.username}`} className="shrink-0">
+          <div className="relative h-8 w-8 overflow-hidden rounded-full bg-zinc-700">
+            {author?.avatar_url ? (
+              <Image
+                src={author.avatar_url}
+                alt={displayName}
+                fill
+                sizes="32px"
+                className="object-cover"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-zinc-400">
+                {displayName.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+          </div>
+        </Link>
+      ) : (
+        <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-700">
           <span className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-zinc-400">
             {displayName.slice(0, 2).toUpperCase()}
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="min-w-0 flex-1">
         {/* Meta row */}
         <div className="mb-1.5 flex items-baseline justify-between gap-2">
           <div className="flex flex-wrap items-baseline gap-x-2">
-            <span className="text-sm font-medium text-white">{displayName}</span>
+            {author?.username ? (
+              <Link href={`/user/${author.username}`} className="text-sm font-medium text-white hover:underline">
+                {displayName}
+              </Link>
+            ) : (
+              <span className="text-sm font-medium text-white">{displayName}</span>
+            )}
             {author?.username && (
-              <span className="text-xs text-zinc-500">@{author.username}</span>
+              <Link href={`/user/${author.username}`} className="text-xs text-zinc-500 hover:text-zinc-300">
+                @{author.username}
+              </Link>
             )}
             <span className="text-xs text-zinc-600">{dateStr}</span>
           </div>
