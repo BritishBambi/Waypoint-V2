@@ -118,12 +118,21 @@ export default async function LibraryPage({ params }: Props) {
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-          {logs.map(({ id, status, games, reviews }) =>
-            games ? (
-              <div key={id} className="group">
-                {/* Cover + title → game page */}
-                <Link href={`/games/${games.slug}`} className="block">
-                  <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800">
+          {logs.map(({ id, status, games, reviews }) => {
+            if (!games) return null;
+            const review = reviews[0] ?? null;
+            const rating = review?.rating ?? null;
+            return (
+              <div key={id} className="group flex flex-col gap-1.5">
+
+                {/* ── Cover area — overlays are absolute inside here ── */}
+                <div className="relative aspect-[2/3] w-full rounded-lg">
+
+                  {/* Cover image + rating badge (inside overflow-hidden) */}
+                  <Link
+                    href={`/games/${games.slug}`}
+                    className="block h-full overflow-hidden rounded-lg bg-zinc-800"
+                  >
                     {games.cover_url ? (
                       <Image
                         src={igdbCover(games.cover_url, "t_720p")!}
@@ -136,45 +145,50 @@ export default async function LibraryPage({ params }: Props) {
                     ) : (
                       <NoCover />
                     )}
-                  </div>
-                  <p className="mt-1.5 line-clamp-1 text-xs font-medium text-zinc-300 transition-colors group-hover:text-white">
-                    {games.title}
-                  </p>
-                </Link>
 
-                {/* Status badge + rating/review indicators */}
-                <div className="mt-1 space-y-1">
-                  <span
-                    className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.shelved}`}
-                  >
-                    {STATUS_LABEL[status] ?? status}
-                  </span>
-                  {reviews.length > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      {reviews[0].rating != null && (
-                        <span className="flex items-center gap-0.5 text-[10px] font-medium text-yellow-400">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                          </svg>
-                          {reviews[0].rating}
-                        </span>
-                      )}
-                      <Link
-                        href={`/review/${reviews[0].id}`}
-                        className="flex items-center gap-0.5 text-[10px] text-zinc-500 transition-colors hover:text-zinc-300"
-                        title="View review"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    {/* Rating — bottom right */}
+                    {rating != null && (
+                      <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-black/70 px-1.5 py-0.5 backdrop-blur-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400" aria-hidden="true">
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                         </svg>
-                        Review
-                      </Link>
-                    </div>
+                        <span className="text-[10px] font-medium text-yellow-400">{rating}</span>
+                      </div>
+                    )}
+                  </Link>
+
+                  {/* Review bubble — bottom left, outside overflow-hidden */}
+                  {review && (
+                    <Link
+                      href={`/review/${review.id}`}
+                      title="View review"
+                      className="absolute bottom-1.5 left-1.5 z-10 flex items-center justify-center rounded-full bg-black/70 p-1 backdrop-blur-sm transition-colors hover:bg-black/90"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                    </Link>
                   )}
                 </div>
+
+                {/* Title */}
+                <Link
+                  href={`/games/${games.slug}`}
+                  className="line-clamp-1 text-xs font-medium text-zinc-300 transition-colors group-hover:text-white"
+                >
+                  {games.title}
+                </Link>
+
+                {/* Status badge */}
+                <span
+                  className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.shelved}`}
+                >
+                  {STATUS_LABEL[status] ?? status}
+                </span>
+
               </div>
-            ) : null
-          )}
+            );
+          })}
         </div>
       )}
 
