@@ -83,14 +83,12 @@ export function LibraryCarousel({ items }: { items: LibraryItem[] }) {
             return (
               <div key={id} className="group flex flex-col gap-1.5">
 
-                {/* ── Cover area — overlays are absolute inside here ── */}
-                <div className="relative aspect-[2/3] w-full rounded-lg">
+                {/* ── Cover area ─────────────────────────────────────────── */}
+                {/* overflow-hidden lives here so absolute overlays clip correctly */}
+                <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800">
 
-                  {/* Cover image + rating badge (inside overflow-hidden so badge clips) */}
-                  <Link
-                    href={`/games/${games.slug}`}
-                    className="block h-full overflow-hidden rounded-lg bg-zinc-800"
-                  >
+                  {/* Cover image */}
+                  <Link href={`/games/${games.slug}`} className="block h-full">
                     {games.cover_url ? (
                       <Image
                         src={igdbCover(games.cover_url, "t_720p")!}
@@ -103,25 +101,25 @@ export function LibraryCarousel({ items }: { items: LibraryItem[] }) {
                     ) : (
                       <NoCover />
                     )}
-
-                    {/* Rating — bottom right */}
-                    {rating != null && (
-                      <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-black/70 px-1.5 py-0.5 backdrop-blur-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400" aria-hidden="true">
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                        </svg>
-                        <span className="text-[10px] font-medium text-yellow-400">{rating}</span>
-                      </div>
-                    )}
                   </Link>
 
-                  {/* Review bubble — bottom left, outside overflow-hidden so it isn't clipped */}
+                  {/* Rating — bottom right overlay */}
+                  {rating != null && (
+                    <div className="pointer-events-none absolute bottom-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400" aria-hidden="true">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                      <span className="text-[10px] font-medium text-yellow-400">{rating}</span>
+                    </div>
+                  )}
+
+                  {/* Review bubble — bottom left overlay */}
                   {review && (
                     <Link
                       href={`/review/${review.id}`}
                       onClick={(e) => e.stopPropagation()}
                       title="View review"
-                      className="absolute bottom-1.5 left-1.5 z-10 flex items-center justify-center rounded-full bg-black/70 p-1 backdrop-blur-sm transition-colors hover:bg-black/90"
+                      className="absolute bottom-1.5 left-1.5 z-10 flex items-center justify-center rounded-full bg-black/60 p-1 backdrop-blur-sm transition-colors hover:bg-black/80"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -138,8 +136,8 @@ export function LibraryCarousel({ items }: { items: LibraryItem[] }) {
                   {games.title}
                 </Link>
 
-                {/* Status badge */}
-                <span className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.shelved}`}>
+                {/* Status badge — self-start prevents flex-stretch to full width */}
+                <span className={`self-start rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.shelved}`}>
                   {STATUS_LABEL[status] ?? status}
                 </span>
 
