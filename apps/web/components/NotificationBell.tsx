@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 
 type NotificationRow = {
   id: string;
-  type: "follow" | "review_like" | "review_comment";
+  type: "follow" | "review_like" | "review_comment" | "welcome";
   read: boolean;
   created_at: string;
   review_id: string | null;
@@ -419,6 +419,28 @@ function SingleRow({
               &ldquo;{preview}&rdquo;
             </p>
           )}
+          <p className="mt-0.5 text-xs text-zinc-600">{timeAgo(item.created_at)}</p>
+        </div>
+      </RowWrapper>
+    );
+  }
+
+  if (item.type === "welcome") {
+    return (
+      <RowWrapper
+        unread={!item.read}
+        href="/search"
+        onRead={onRead}
+        onClose={onClose}
+      >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white">
+          W
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug text-zinc-300">
+            <span className="font-medium text-white">Welcome to Waypoint!</span>{" "}
+            Start logging games to build out your profile.
+          </p>
           <p className="mt-0.5 text-xs text-zinc-600">{timeAgo(item.created_at)}</p>
         </div>
       </RowWrapper>
