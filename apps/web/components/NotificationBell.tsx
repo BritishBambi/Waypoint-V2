@@ -12,9 +12,10 @@ import { createClient } from "@/lib/supabase/client";
 
 type NotificationRow = {
   id: string;
-  type: "follow" | "review_like" | "review_comment" | "welcome";
+  type: "follow" | "review_like" | "review_comment" | "list_like" | "welcome";
   read: boolean;
   created_at: string;
+  actor_id: string | null;
   review_id: string | null;
   comment_id: string | null;
   actor: {
@@ -76,11 +77,13 @@ export function NotificationBell({ userId }: { userId: string }) {
   // ── Fetch ────────────────────────────────────────────────────────────────
 
   const fetchNotifications = useCallback(async () => {
+    // Fetch notifications without embedding actor — actor_id can be NULL for
+    // system notifications (e.g. welcome), and PostgREST may drop those rows
+    // when using an embedded select on a nullable FK column.
     const { data } = await supabase
       .from("notifications")
       .select(`
-        id, type, read, created_at, review_id, comment_id,
-        actor:profiles!actor_id(id, username, display_name, avatar_url),
+        id, type, read, created_at, actor_id, review_id, comment_id,
         review:reviews(id, games(title, slug))
       `)
       .eq("user_id", userId)
@@ -89,11 +92,25 @@ export function NotificationBell({ userId }: { userId: string }) {
 
     if (!data) return;
 
-    // For comment notifications, fetch comment body in a second query.
+    // Fetch actor profiles separately for notifications that have an actor.
+    const actorIds = [
+      ...new Set(
+        (data as any[]).filter((n) => n.actor_id).map((n) => n.actor_id as string)
+      ),
+    ];
+    let actorMap: Record<string, { id: string; username: string; display_name: string | null; avatar_url: string | null }> = {};
+    if (actorIds.length > 0) {
+      const { data: actors } = await supabase
+        .from("profiles")
+        .select("id, username, display_name, avatar_url")
+        .in("id", actorIds);
+      (actors ?? []).forEach((a: any) => { actorMap[a.id] = a; });
+    }
+
+    // Fetch comment bodies for comment notifications.
     const commentIds = (data as any[])
       .filter((n) => n.type === "review_comment" && n.comment_id)
       .map((n) => n.comment_id as string);
-
     let bodyMap: Record<string, string> = {};
     if (commentIds.length > 0) {
       const { data: comments } = await supabase
@@ -105,6 +122,7 @@ export function NotificationBell({ userId }: { userId: string }) {
 
     const enriched = (data as any[]).map((n) => ({
       ...n,
+      actor: n.actor_id ? (actorMap[n.actor_id] ?? null) : null,
       comment_body: n.comment_id ? (bodyMap[n.comment_id] ?? null) : null,
     })) as NotificationRow[];
 
