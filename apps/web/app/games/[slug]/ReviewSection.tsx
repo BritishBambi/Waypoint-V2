@@ -255,8 +255,6 @@ function WriteReviewForm({
 }
 
 // ─── ReviewCardWrapper ────────────────────────────────────────────────────────
-// Adds a pencil-icon shortcut for the review author, overlaid top-right on
-// hover. Uses `relative` + `group` so the icon is positioned over the card.
 
 function ReviewCardWrapper({
   review,
@@ -266,32 +264,14 @@ function ReviewCardWrapper({
   userId: string | null;
 }) {
   const isAuthor = !!userId && userId === review.user_id;
-
-  return (
-    <div className="group relative">
-      <ReviewCard review={review} />
-      {isAuthor && (
-        <Link
-          href={`/review/${review.id}?edit=true`}
-          onClick={(e) => e.stopPropagation()}
-          aria-label="Edit this review"
-          className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-md border border-zinc-700 bg-zinc-800 text-zinc-500 opacity-0 transition-opacity hover:border-zinc-500 hover:text-white group-hover:opacity-100"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </Link>
-      )}
-    </div>
-  );
+  return <ReviewCard review={review} isAuthor={isAuthor} />;
 }
 
 // ─── ReviewCard ───────────────────────────────────────────────────────────────
 
 const TRUNCATE_AT = 200; // characters — full review lives at /review/[id]
 
-function ReviewCard({ review }: { review: ReviewWithAuthor }) {
+function ReviewCard({ review, isAuthor }: { review: ReviewWithAuthor; isAuthor: boolean }) {
   const author = review.profiles;
   const displayName = author?.display_name ?? author?.username ?? "Anonymous";
   const initials = displayName.slice(0, 2).toUpperCase();
@@ -309,78 +289,91 @@ function ReviewCard({ review }: { review: ReviewWithAuthor }) {
     : review.body;
 
   return (
-    <Link
-      href={`/review/${review.id}`}
-      className="block rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:bg-zinc-800/60"
-    >
-      {/* Author + meta */}
-      <div className="mb-3 flex items-start gap-3">
-        {/* Avatar */}
-        <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-zinc-700">
-          {author?.avatar_url ? (
-            <Image
-              src={author.avatar_url}
-              alt={displayName}
-              fill
-              sizes="36px"
-              className="object-cover"
-            />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-zinc-400">
-              {initials}
-            </span>
-          )}
-        </div>
-
-        <div className="flex flex-1 min-w-0 items-start justify-between gap-4">
-          {/* Left: name / username / date */}
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span className="text-sm font-medium text-white">{displayName}</span>
-              {author?.username && author.username !== displayName && (
-                <span className="text-xs text-zinc-500">@{author.username}</span>
-              )}
-            </div>
-            {dateStr && (
-              <p className="text-xs text-zinc-500">{dateStr}</p>
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900 transition-colors hover:bg-zinc-800/60">
+      {/* Clickable review content */}
+      <Link href={`/review/${review.id}`} className="block p-5 pb-3">
+        {/* Author + meta */}
+        <div className="mb-3 flex items-start gap-3">
+          {/* Avatar */}
+          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-zinc-700">
+            {author?.avatar_url ? (
+              <Image
+                src={author.avatar_url}
+                alt={displayName}
+                fill
+                sizes="36px"
+                className="object-cover"
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-zinc-400">
+                {initials}
+              </span>
             )}
           </div>
 
-          {/* Right: star rating */}
-          <div className="flex shrink-0 items-center gap-1 text-yellow-400">
-            <StarFilledIcon className="h-3.5 w-3.5" />
-            <span className="text-sm font-semibold text-white">{review.rating}</span>
-            <span className="text-xs text-zinc-500">/5</span>
+          <div className="flex flex-1 min-w-0 items-start justify-between gap-4">
+            {/* Left: name / username / date */}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span className="text-sm font-medium text-white">{displayName}</span>
+                {author?.username && author.username !== displayName && (
+                  <span className="text-xs text-zinc-500">@{author.username}</span>
+                )}
+              </div>
+              {dateStr && (
+                <p className="text-xs text-zinc-500">{dateStr}</p>
+              )}
+            </div>
+
+            {/* Right: star rating */}
+            <div className="flex shrink-0 items-center gap-1 text-yellow-400">
+              <StarFilledIcon className="h-3.5 w-3.5" />
+              <span className="text-sm font-semibold text-white">{review.rating}</span>
+              <span className="text-xs text-zinc-500">/5</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Body */}
-      {bodyText ? (
-        <>
-          <p className="text-sm leading-relaxed text-zinc-300">{bodyText}</p>
-          {isTruncated && (
-            <span className="mt-2 inline-block text-xs font-medium text-indigo-400">
-              Read more
-            </span>
-          )}
-        </>
-      ) : (
-        <p className="text-xs italic text-zinc-600">No written review.</p>
-      )}
+        {/* Body */}
+        {bodyText ? (
+          <>
+            <p className="text-sm leading-relaxed text-zinc-300">{bodyText}</p>
+            {isTruncated && (
+              <span className="mt-2 inline-block text-xs font-medium text-indigo-400">
+                Read more
+              </span>
+            )}
+          </>
+        ) : (
+          <p className="text-xs italic text-zinc-600">No written review.</p>
+        )}
+      </Link>
 
-      {/* Social counts — bottom right */}
-      <div className="mt-4 flex items-center justify-end gap-4 text-sm text-zinc-400">
-        <span className="flex items-center gap-1.5">
-          <HeartIcon className="h-3.5 w-3.5" />
-          {review.like_count}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <ChatBubbleIcon className="h-3.5 w-3.5" />
-          {review.comment_count}
-        </span>
+      {/* Footer — edit link left, social counts right */}
+      <div className="flex items-center justify-between gap-4 px-5 pb-4 text-sm text-zinc-400">
+        {isAuthor ? (
+          <Link
+            href={`/review/${review.id}?edit=true`}
+            className="flex items-center gap-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+          >
+            <PencilIcon className="h-3 w-3" />
+            Edit
+          </Link>
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <HeartIcon className="h-3.5 w-3.5" />
+            {review.like_count}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <ChatBubbleIcon className="h-3.5 w-3.5" />
+            {review.comment_count}
+          </span>
+        </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -526,6 +519,15 @@ function StarFilledIcon({ className }: { className?: string }) {
       aria-hidden="true"
     >
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+
+function PencilIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
   );
 }
