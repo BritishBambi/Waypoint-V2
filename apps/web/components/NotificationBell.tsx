@@ -185,6 +185,24 @@ export function NotificationBell({ userId }: { userId: string }) {
     await markRead(unreadIds);
   }
 
+  async function dismiss(ids: string[]) {
+    // Optimistic removal.
+    setItems((prev) => prev.filter((n) => !ids.includes(n.id)));
+    await (supabase as any)
+      .from("notifications")
+      .delete()
+      .in("id", ids)
+      .eq("user_id", userId);
+  }
+
+  async function clearAll() {
+    setItems([]);
+    await (supabase as any)
+      .from("notifications")
+      .delete()
+      .eq("user_id", userId);
+  }
+
   // ── Derived state ─────────────────────────────────────────────────────────
 
   const unreadCount = items.filter((n) => !n.read).length;
@@ -271,13 +289,26 @@ export function NotificationBell({ userId }: { userId: string }) {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
             <span className="text-sm font-semibold text-white">Notifications</span>
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllRead}
-                className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
-              >
-                Mark all as read
-              </button>
+            {items.length > 0 && (
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <>
+                    <button
+                      onClick={markAllRead}
+                      className="text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+                    >
+                      Mark all read
+                    </button>
+                    <span className="text-zinc-700">·</span>
+                  </>
+                )}
+                <button
+                  onClick={clearAll}
+                  className="text-xs text-zinc-500 transition-colors hover:text-red-400"
+                >
+                  Clear all
+                </button>
+              </div>
             )}
           </div>
 
@@ -295,6 +326,7 @@ export function NotificationBell({ userId }: { userId: string }) {
                     item={item}
                     onRead={() => markRead(item.ids)}
                     onClose={() => setOpen(false)}
+                    onDismiss={() => dismiss(item.ids)}
                   />
                 ) : (
                   <SingleRow
@@ -302,6 +334,7 @@ export function NotificationBell({ userId }: { userId: string }) {
                     item={item}
                     onRead={() => markRead([item.id])}
                     onClose={() => setOpen(false)}
+                    onDismiss={() => dismiss([item.id])}
                   />
                 )
               )
@@ -320,12 +353,14 @@ function RowWrapper({
   href,
   onRead,
   onClose,
+  onDismiss,
   children,
 }: {
   unread: boolean;
   href: string;
   onRead: () => void;
   onClose: () => void;
+  onDismiss: () => void;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -335,9 +370,24 @@ function RowWrapper({
       tabIndex={0}
       onClick={() => { onRead(); onClose(); router.push(href); }}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { onRead(); onClose(); router.push(href); } }}
-      className={`cursor-pointer flex items-start gap-3 px-4 py-3 transition-colors hover:bg-zinc-900 ${unread ? "border-l-2 border-violet-500" : "border-l-2 border-transparent"}`}
+      className={`group/row cursor-pointer flex items-center gap-3 px-4 py-3 transition-colors hover:bg-zinc-900 ${unread ? "border-l-2 border-violet-500" : "border-l-2 border-transparent"}`}
     >
-      {children}
+      {/* Content — items-start so avatar aligns to top for tall rows */}
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        {children}
+      </div>
+
+      {/* Dismiss button — visible on row hover only */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+        aria-label="Dismiss notification"
+        className="shrink-0 opacity-0 group-hover/row:opacity-100 rounded p-0.5 text-zinc-600 transition-all hover:text-red-400"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -381,10 +431,12 @@ function SingleRow({
   item,
   onRead,
   onClose,
+  onDismiss,
 }: {
   item: SingleNotification;
   onRead: () => void;
   onClose: () => void;
+  onDismiss: () => void;
 }) {
   const actor = item.actor;
   const name = actorName(actor);
@@ -396,6 +448,7 @@ function SingleRow({
         href={`/user/${actor?.username ?? ""}`}
         onRead={onRead}
         onClose={onClose}
+        onDismiss={onDismiss}
       >
         <Avatar url={actor?.avatar_url ?? null} username={actor?.username ?? "?"} profileUsername={actor?.username} />
         <div className="min-w-0 flex-1">
@@ -424,6 +477,7 @@ function SingleRow({
         href={gameSlug ? `/games/${gameSlug}` : "/"}
         onRead={onRead}
         onClose={onClose}
+        onDismiss={onDismiss}
       >
         <Avatar url={actor?.avatar_url ?? null} username={actor?.username ?? "?"} profileUsername={actor?.username} />
         <div className="min-w-0 flex-1">
@@ -450,6 +504,7 @@ function SingleRow({
         href="/search"
         onRead={onRead}
         onClose={onClose}
+        onDismiss={onDismiss}
       >
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-bold text-white">
           W
@@ -473,10 +528,12 @@ function LikeBunchRow({
   item,
   onRead,
   onClose,
+  onDismiss,
 }: {
   item: BunchedLike;
   onRead: () => void;
   onClose: () => void;
+  onDismiss: () => void;
 }) {
   const [first, second] = item.actors;
   const others = item.actors.length - 2;
@@ -496,6 +553,7 @@ function LikeBunchRow({
       href={item.gameSlug ? `/games/${item.gameSlug}` : "/"}
       onRead={onRead}
       onClose={onClose}
+      onDismiss={onDismiss}
     >
       {/* Stack up to 2 avatars */}
       <div className="relative h-8 shrink-0" style={{ width: item.actors.length > 1 ? "44px" : "32px" }}>
