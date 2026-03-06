@@ -20,6 +20,7 @@ type LogWithGame = {
     cover_url: string | null;
     release_date: string | null;
   } | null;
+  reviews: Array<{ id: string; rating: number | null }>;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -60,7 +61,7 @@ export default async function LibraryPage({ params }: Props) {
   // Fetch all game logs joined with games (including release_date for sorting).
   const { data: rawLogs } = await supabase
     .from("game_logs")
-    .select("id, status, games(id, slug, title, cover_url, release_date)")
+    .select("id, status, games(id, slug, title, cover_url, release_date), reviews(id, rating)")
     .eq("user_id", profile.id);
 
   const logs = (rawLogs ?? []) as unknown as LogWithGame[];
@@ -117,34 +118,61 @@ export default async function LibraryPage({ params }: Props) {
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-          {logs.map(({ id, status, games }) =>
+          {logs.map(({ id, status, games, reviews }) =>
             games ? (
-              <Link key={id} href={`/games/${games.slug}`} className="group">
-                <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800">
-                  {games.cover_url ? (
-                    <Image
-                      src={igdbCover(games.cover_url, "t_720p")!}
-                      alt={games.title}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
-                      quality={90}
-                      className="object-cover transition-transform duration-200 group-hover:scale-105"
-                    />
-                  ) : (
-                    <NoCover />
-                  )}
-                </div>
-                <div className="mt-1.5 space-y-1">
-                  <p className="line-clamp-1 text-xs font-medium text-zinc-300 transition-colors group-hover:text-white">
+              <div key={id} className="group">
+                {/* Cover + title → game page */}
+                <Link href={`/games/${games.slug}`} className="block">
+                  <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800">
+                    {games.cover_url ? (
+                      <Image
+                        src={igdbCover(games.cover_url, "t_720p")!}
+                        alt={games.title}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
+                        quality={90}
+                        className="object-cover transition-transform duration-200 group-hover:scale-105"
+                      />
+                    ) : (
+                      <NoCover />
+                    )}
+                  </div>
+                  <p className="mt-1.5 line-clamp-1 text-xs font-medium text-zinc-300 transition-colors group-hover:text-white">
                     {games.title}
                   </p>
+                </Link>
+
+                {/* Status badge + rating/review indicators */}
+                <div className="mt-1 space-y-1">
                   <span
                     className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.shelved}`}
                   >
                     {STATUS_LABEL[status] ?? status}
                   </span>
+                  {reviews.length > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      {reviews[0].rating != null && (
+                        <span className="flex items-center gap-0.5 text-[10px] font-medium text-yellow-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                          {reviews[0].rating}
+                        </span>
+                      )}
+                      <Link
+                        href={`/review/${reviews[0].id}`}
+                        className="flex items-center gap-0.5 text-[10px] text-zinc-500 transition-colors hover:text-zinc-300"
+                        title="View review"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                        Review
+                      </Link>
+                    </div>
+                  )}
                 </div>
-              </Link>
+              </div>
             ) : null
           )}
         </div>

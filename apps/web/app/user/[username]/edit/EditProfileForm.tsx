@@ -60,8 +60,8 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Favourite games state ─────────────────────────────────────────────────────
-  // Always exactly 4 elements; null means an empty slot.
-  const [slots, setSlots] = useState<(FavGame | null)[]>([null, null, null, null]);
+  // Always exactly 5 elements; null means an empty slot.
+  const [slots, setSlots] = useState<(FavGame | null)[]>([null, null, null, null, null]);
 
   // ── Search modal state ───────────────────────────────────────────────────────
   const [modalOpen, setModalOpen]             = useState(false);
@@ -95,9 +95,9 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       .order("position")
       .then(({ data }) => {
         if (!data) return;
-        const next: (FavGame | null)[] = [null, null, null, null];
+        const next: (FavGame | null)[] = [null, null, null, null, null];
         for (const row of data as unknown as { position: number; games: FavGame | null }[]) {
-          if (row.games && row.position >= 1 && row.position <= 4) {
+          if (row.games && row.position >= 1 && row.position <= 5) {
             next[row.position - 1] = row.games;
           }
         }
@@ -589,7 +589,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
         <div>
           <p className="mb-1 text-sm font-medium text-zinc-300">Favourite Games</p>
           <p className="mb-4 text-xs text-zinc-500">
-            Pin up to 4 games to your profile. Drag filled slots to reorder.
+            Pin up to 5 games to your profile. Drag filled slots to reorder.
           </p>
 
           <DragDropContext onDragEnd={onDragEnd}>
@@ -598,7 +598,7 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="grid grid-cols-4 gap-3"
+                  className="grid grid-cols-5 gap-3"
                 >
                   {slots.map((game, i) => (
                     <Draggable

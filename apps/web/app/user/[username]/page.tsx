@@ -35,6 +35,7 @@ type LogWithGame = {
   status: string;
   updated_at: string;
   games: GameStub | null;
+  reviews: Array<{ id: string; rating: number | null }>;
 };
 
 type ReviewWithGame = {
@@ -132,7 +133,7 @@ export default async function UserProfilePage({
     await Promise.all([
       supabase
         .from("game_logs")
-        .select("id, status, updated_at, games(id, slug, title, cover_url)")
+        .select("id, status, updated_at, games(id, slug, title, cover_url), reviews(id, rating)")
         .eq("user_id", profile.id)
         .order("updated_at", { ascending: false }),
 
@@ -207,10 +208,10 @@ export default async function UserProfilePage({
     list_likes: Array<{ id: string }>;
   }>;
 
-  // Build a 4-element array indexed by position (0 = position 1).
-  const favouriteSlots: (GameStub | null)[] = [null, null, null, null];
+  // Build a 5-element array indexed by position (0 = position 1).
+  const favouriteSlots: (GameStub | null)[] = [null, null, null, null, null];
   for (const row of favRows) {
-    if (row.games && row.position >= 1 && row.position <= 4) {
+    if (row.games && row.position >= 1 && row.position <= 5) {
       favouriteSlots[row.position - 1] = row.games;
     }
   }
@@ -336,14 +337,14 @@ export default async function UserProfilePage({
       {(hasFavourites || isOwnProfile) && (
         <section className="mt-10">
           <h2 className="mb-4 text-base font-semibold text-white">Favourite Games</h2>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:w-fit">
+          <div className="grid grid-cols-5 gap-3">
             {favouriteSlots.map((game, i) =>
               game ? (
                 // Filled slot — cover with title tooltip on hover
                 <Link
                   key={game.id}
                   href={`/games/${game.slug}`}
-                  className="group relative w-full lg:w-[220px] aspect-[2/3] overflow-hidden rounded-lg bg-zinc-800"
+                  className="group relative aspect-[2/3] overflow-hidden rounded-lg bg-zinc-800"
                   title={game.title}
                 >
                   {game.cover_url ? (
@@ -351,7 +352,7 @@ export default async function UserProfilePage({
                       src={igdbCover(game.cover_url, "t_720p")!}
                       alt={game.title}
                       fill
-                      sizes="(max-width: 1024px) 50vw, 220px"
+                      sizes="(max-width: 640px) 20vw, (max-width: 1280px) 20vw, 200px"
                       quality={90}
                       className="object-cover transition-transform duration-200 group-hover:scale-105"
                     />
@@ -370,7 +371,7 @@ export default async function UserProfilePage({
                 <Link
                   key={`empty-${i}`}
                   href={`/user/${profile.username}/edit`}
-                  className="flex aspect-[2/3] w-full lg:max-w-[220px] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-zinc-800 transition-colors hover:border-zinc-600"
+                  className="flex aspect-[2/3] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-zinc-800 transition-colors hover:border-zinc-600"
                   title="Add a favourite game"
                 >
                   <svg
@@ -386,7 +387,7 @@ export default async function UserProfilePage({
                 // Empty slot on someone else's profile — muted placeholder
                 <div
                   key={`empty-${i}`}
-                  className="aspect-[2/3] w-full lg:max-w-[220px] rounded-lg border border-dashed border-zinc-800"
+                  className="aspect-[2/3] rounded-lg border border-dashed border-zinc-800"
                   aria-hidden="true"
                 />
               )
