@@ -85,14 +85,14 @@ export function GameLogSection({ game, userId, existingLog }: Props) {
     );
   }
 
-  function handleSaved(newLog: LogSummary) {
+  function handleSaved(newLog: LogSummary | null) {
     // Optimistically update the cache so the button reflects the new status
     // without waiting for a refetch.
-    queryClient.setQueryData(gameLogKey(game.id, userId!), newLog);
+    queryClient.setQueryData(gameLogKey(game.id, userId!), newLog ?? undefined);
     // Schedule a background refetch to confirm the data is consistent.
     queryClient.invalidateQueries({ queryKey: gameLogKey(game.id, userId!) });
     setIsOpen(false);
-    // Refresh the Server Component subtree so ReviewSection gets the new log id.
+    // Refresh the Server Component subtree so ReviewSection gets the updated log.
     router.refresh();
   }
 
@@ -154,12 +154,12 @@ interface ModalProps {
   userId: string;
   existingLog: LogSummary | null;
   onClose: () => void;
-  onSaved: (log: LogSummary) => void;
+  onSaved: (log: LogSummary | null) => void;
 }
 
 function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
-  const [status, setStatus] = useState<Status>(
-    (existingLog?.status as Status) ?? "played"
+  const [status, setStatus] = useState<Status | null>(
+    (existingLog?.status as Status) ?? null
   );
   const [rating, setRating] = useState(0);
   const [note, setNote] = useState("");
@@ -171,6 +171,32 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
     // We always create the client fresh inside the mutation handler so it
     // has the latest auth session.
     const supabase = createClient();
+
+    // ── Null status: remove game from library ─────────────────────────────
+    //
+    // If the user deselected all statuses, treat Save as "remove this game".
+    // ON DELETE CASCADE on reviews and diary_entries cleans up child rows.
+    // If there's no existing log (new modal, nothing ever selected), just close.
+    if (status === null) {
+      if (existingLog) {
+        const { error: deleteErr } = await (supabase as any)
+          .from("game_logs")
+          .delete()
+          .eq("game_id", game.id)
+          .eq("user_id", userId);
+
+        if (deleteErr) {
+          toast(`Could not remove game: ${deleteErr.message}`, "error");
+          setIsSaving(false);
+          return;
+        }
+        toast(`${game.title} removed from your library`);
+        onSaved(null);
+      } else {
+        onClose();
+      }
+      return;
+    }
 
     // ── Step 1: Ensure the game exists in the games table ──────────────────
     //
@@ -307,7 +333,7 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
 
     // ── Step 5: Success ────────────────────────────────────────────────────
     toast(`${game.title} logged!`);
-    onSaved({ id: logId, status });
+    onSaved({ id: logId, status: status! });
     // isSaving intentionally left true — the modal closes immediately and
     // there's no point flashing the button back to "Save".
   }
@@ -354,7 +380,7 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setStatus(value)}
+                  onClick={() => setStatus(status === value ? null : value)}
                   className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                     status === value
                       ? "border-indigo-500 bg-indigo-500/20 text-indigo-300"
