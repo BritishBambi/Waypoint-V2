@@ -18,7 +18,7 @@ import { igdbCover } from "@/lib/igdb";
 import { FollowButton } from "./FollowButton";
 import { LibraryCarousel } from "./LibraryCarousel";
 import { WishlistCarousel, type WishlistItem } from "./WishlistCarousel";
-import { ListCard, ListRow } from "@/components/ListCard";
+import { ListCard } from "@/components/ListCard";
 import { SpoilerReveal } from "./SpoilerReveal";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
@@ -62,6 +62,14 @@ type FavouriteSlot = {
   games: GameStub | null;
 };
 
+type ShowcaseListData = {
+  id: string;
+  title: string;
+  description: string | null;
+  list_entries: Array<{ games: { cover_url: string | null } | null }>;
+  list_likes: Array<{ id: string }>;
+};
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -76,17 +84,6 @@ const AVATAR_COLORS = [
   "bg-sky-600",
   "bg-pink-600",
 ];
-
-// User-requested badge colours differ from the game-detail page —
-// teal for Playing, violet for Played, amber for Wishlist, muted red for Dropped.
-const STATUS_BADGE: Record<string, string> = {
-  playing:  "bg-teal-500/20   text-teal-300   border-teal-500/40",
-  played:   "bg-violet-500/20 text-violet-300 border-violet-500/40",
-  dropped:  "bg-red-900/30    text-red-400    border-red-800/50",
-  backlog:  "bg-sky-500/20    text-sky-300    border-sky-500/40",
-  shelved:  "bg-zinc-700/30   text-zinc-400   border-zinc-700/50",
-};
-
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -125,6 +122,11 @@ export default async function UserProfilePage({
 
   if (!profile) notFound();
 
+  // ── Showcase fields ──────────────────────────────────────────────────────────
+  const showcaseType    = (profile as any).showcase_type    as "review" | "list" | null;
+  const showcaseList1Id = (profile as any).showcase_list_1_id as string | null;
+  const showcaseList2Id = (profile as any).showcase_list_2_id as string | null;
+
   // ── 2. Parallel data fetching ───────────────────────────────────────────────
   // Named result variables avoid TypeScript tuple-inference issues that arise
   // when mixing head:true count queries with data queries in one destructure.
@@ -135,9 +137,11 @@ export default async function UserProfilePage({
     authRes,
     favsRes,
     followerRes,
-    followingRes,
     publicListsCountRes,
     recentListsRes,
+    followingRes,
+    showcaseList1Res,
+    showcaseList2Res,
   ] =
     await Promise.all([
       supabase
@@ -177,14 +181,14 @@ export default async function UserProfilePage({
         .select("*", { count: "exact", head: true })
         .eq("followee_id", profile.id),
 
-      // Public lists count (used when viewer is not the owner)
+      // Public lists count (used when viewer is not the owner).
       supabase
         .from("lists")
         .select("id", { count: "exact", head: true })
         .eq("user_id", profile.id)
         .eq("is_public", true),
 
-      // Fetch up to 3 recent public lists with first few covers
+      // Fetch up to 3 recent public lists with first few covers.
       supabase
         .from("lists")
         .select(`
@@ -202,6 +206,24 @@ export default async function UserProfilePage({
         .from("follows")
         .select("*", { count: "exact", head: true })
         .eq("follower_id", profile.id),
+
+      // Showcase list 1 — only fetched when showcase_type is 'list'.
+      showcaseType === "list" && showcaseList1Id
+        ? supabase
+            .from("lists")
+            .select("id, title, description, list_entries(games(cover_url)), list_likes(id)")
+            .eq("id", showcaseList1Id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+
+      // Showcase list 2 — only fetched when showcase_type is 'list'.
+      showcaseType === "list" && showcaseList2Id
+        ? supabase
+            .from("lists")
+            .select("id, title, description, list_entries(games(cover_url)), list_likes(id)")
+            .eq("id", showcaseList2Id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
   ]);
 
   const rawLogs      = logsRes.data;
@@ -245,11 +267,13 @@ export default async function UserProfilePage({
     list_entries: Array<{ position: number | null; games: { cover_url: string | null } | null }>;
     list_likes: Array<{ id: string }>;
   }>;
+  const showcaseList1 = (showcaseList1Res as any).data as ShowcaseListData | null;
+  const showcaseList2 = (showcaseList2Res as any).data as ShowcaseListData | null;
 
-  // ── Featured review (showcase) ─────────────────────────────────────────────
+  // ── Featured review (showcase) — only fetch if showcase is set to 'review' ──
   const featuredReviewId = (profile as any).featured_review_id as string | null;
   let featuredReview: FeaturedReview | null = null;
-  if (featuredReviewId) {
+  if (showcaseType === "review" && featuredReviewId) {
     const { data: rawFeatured } = await supabase
       .from("reviews")
       .select("id, rating, body, is_spoiler, games(id, slug, title, cover_url, release_date)")
@@ -381,14 +405,6 @@ export default async function UserProfilePage({
         </div>
       </section>
 
-      {/* ── Showcase Review ──────────────────────────────────────────────────── */}
-      {featuredReview && (
-        <section className="mt-10">
-          <h2 className="mb-4 text-base font-semibold text-white">Review Showcase</h2>
-          <ShowcaseCard review={featuredReview} />
-        </section>
-      )}
-
       {/* ── Favourite Games ──────────────────────────────────────────────────── */}
       {/* Hidden entirely when the profile has no favourites and it's not the owner */}
       {(hasFavourites || isOwnProfile) && (
@@ -450,6 +466,50 @@ export default async function UserProfilePage({
               )
             )}
           </div>
+        </section>
+      )}
+
+      {/* ── Showcase ─────────────────────────────────────────────────────────── */}
+      {showcaseType === "review" && featuredReview && (
+        <section className="mt-10">
+          <h2 className="mb-4 text-base font-semibold text-white">Review Showcase</h2>
+          <ShowcaseCard review={featuredReview} />
+        </section>
+      )}
+
+      {showcaseType === "list" && (showcaseList1 || showcaseList2) && (
+        <section className="mt-10">
+          <h2 className="mb-4 text-base font-semibold text-white">List Showcase</h2>
+          <div className={`grid gap-4 ${showcaseList1 && showcaseList2 ? "grid-cols-2" : "grid-cols-1 sm:max-w-xs"}`}>
+            {showcaseList1 && (
+              <ShowcaseListCard list={showcaseList1} username={profile.username} />
+            )}
+            {showcaseList2 && (
+              <ShowcaseListCard list={showcaseList2} username={profile.username} />
+            )}
+          </div>
+        </section>
+      )}
+
+      {!showcaseType && isOwnProfile && (
+        <section className="mt-10">
+          <Link
+            href={`/user/${profile.username}/edit`}
+            className="flex items-center gap-3 rounded-xl border-2 border-dashed border-zinc-800 p-5 transition-colors hover:border-zinc-600"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+              className="shrink-0 text-zinc-600"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            <div>
+              <p className="text-sm font-medium text-zinc-400">Add a Showcase</p>
+              <p className="text-xs text-zinc-600">Pin a review or list to the top of your profile</p>
+            </div>
+          </Link>
         </section>
       )}
 
@@ -744,6 +804,65 @@ function ShowcaseCard({ review }: { review: FeaturedReview }) {
         )}
       </div>
     </div>
+  );
+}
+
+// Showcase list card — shown in "list" showcase mode
+function ShowcaseListCard({ list, username }: { list: ShowcaseListData; username: string }) {
+  const covers = list.list_entries.slice(0, 4).map((e) => e.games?.cover_url ?? null);
+  const likeCount  = list.list_likes.length;
+  const entryCount = list.list_entries.length;
+
+  return (
+    <Link
+      href={`/user/${username}/lists/${list.id}`}
+      className="group relative flex flex-col overflow-hidden rounded-xl border border-violet-500/20 bg-zinc-900 transition-colors hover:border-violet-500/40"
+    >
+      {/* ✦ Showcase badge */}
+      <span className="absolute right-3 top-3 z-10 text-[10px] font-medium text-violet-400">✦ Showcase</span>
+
+      {/* 2×2 cover grid */}
+      <div className="grid grid-cols-2 gap-px overflow-hidden bg-zinc-800">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="relative aspect-[2/3] bg-zinc-800">
+            {covers[i] ? (
+              <Image
+                src={igdbCover(covers[i]!, "t_cover_big")!}
+                alt=""
+                fill
+                sizes="(max-width: 640px) 25vw, 15vw"
+                className="object-cover transition-transform duration-200 group-hover:scale-105"
+              />
+            ) : (
+              <div className="h-full w-full bg-zinc-800" />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-col gap-1 p-3">
+        <p className="line-clamp-1 font-semibold text-white transition-colors group-hover:text-violet-300">
+          {list.title}
+        </p>
+        <p className="text-xs text-zinc-500">
+          {entryCount} {entryCount === 1 ? "game" : "games"}
+        </p>
+        {list.description && (
+          <p className="line-clamp-2 text-xs italic leading-snug text-zinc-500">
+            {list.description}
+          </p>
+        )}
+        {likeCount > 0 && (
+          <div className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            {likeCount}
+          </div>
+        )}
+      </div>
+    </Link>
   );
 }
 

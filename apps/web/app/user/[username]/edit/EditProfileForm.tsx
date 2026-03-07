@@ -33,6 +33,11 @@ type ReviewOption = {
   games: { title: string } | null;
 };
 
+type ListOption = {
+  id: string;
+  title: string;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const AVATAR_COLORS = [
@@ -81,11 +86,21 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     modalOpen ? modalQuery : ""
   );
 
-  // ── Showcase review state ─────────────────────────────────────────────────────
+  // ── Showcase state ────────────────────────────────────────────────────────────
+  const [showcaseType, setShowcaseType] = useState<"review" | "list" | null>(
+    (profile as any).showcase_type ?? null
+  );
   const [featuredReviewId, setFeaturedReviewId] = useState<string | null>(
     (profile as any).featured_review_id ?? null
   );
+  const [showcaseList1Id, setShowcaseList1Id] = useState<string | null>(
+    (profile as any).showcase_list_1_id ?? null
+  );
+  const [showcaseList2Id, setShowcaseList2Id] = useState<string | null>(
+    (profile as any).showcase_list_2_id ?? null
+  );
   const [userReviews, setUserReviews] = useState<ReviewOption[]>([]);
+  const [userLists,   setUserLists]   = useState<ListOption[]>([]);
 
   // ── UI state ─────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
@@ -130,6 +145,19 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
       .order("published_at", { ascending: false })
       .then(({ data }) => {
         if (data) setUserReviews(data as unknown as ReviewOption[]);
+      });
+  }, [profile.id]);
+
+  // Load user's lists for the showcase list pickers.
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("lists")
+      .select("id, title")
+      .eq("user_id", profile.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setUserLists(data as ListOption[]);
       });
   }, [profile.id]);
 
@@ -269,12 +297,20 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
 
     // ── 2. Update profile row ──────────────────────────────────────────────────
     const trimmedUsername = username.trim();
-    const payload: Partial<Profile> & { featured_review_id?: string | null } = {
+    const payload: Partial<Profile> & {
+      featured_review_id?: string | null;
+      showcase_type?: string | null;
+      showcase_list_1_id?: string | null;
+      showcase_list_2_id?: string | null;
+    } = {
       display_name: displayName.trim() || null,
       username:     trimmedUsername,
       bio:          bio.trim() || null,
       website:      website.trim() || null,
-      featured_review_id: featuredReviewId,
+      showcase_type: showcaseType,
+      featured_review_id: showcaseType === "review" ? featuredReviewId : null,
+      showcase_list_1_id: showcaseType === "list"   ? showcaseList1Id  : null,
+      showcase_list_2_id: showcaseType === "list"   ? showcaseList2Id  : null,
     };
     if (newAvatarUrl !== undefined) payload.avatar_url = newAvatarUrl;
 
@@ -710,27 +746,89 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
           </DragDropContext>
         </div>
 
-        {/* ── Showcase Review ───────────────────────────────────────────────────── */}
+        {/* ── Showcase ──────────────────────────────────────────────────────────── */}
         <div>
-          <p className="mb-1 text-sm font-medium text-zinc-300">Showcase Review</p>
+          <p className="mb-1 text-sm font-medium text-zinc-300">Showcase</p>
           <p className="mb-3 text-xs text-zinc-500">
-            Pin one of your reviews to the top of your profile.
+            Pin a review or up to two lists to the top of your profile.
           </p>
-          <select
-            value={featuredReviewId ?? ""}
-            onChange={(e) => setFeaturedReviewId(e.target.value || null)}
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
-            <option value="">None</option>
-            {userReviews.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.games?.title ?? "Unknown game"}
-                {r.body ? ` — ${r.body.slice(0, 60)}${r.body.length > 60 ? "…" : ""}` : ""}
-              </option>
-            ))}
-          </select>
-          {userReviews.length === 0 && (
-            <p className="mt-1.5 text-xs text-zinc-600">You have no published reviews yet.</p>
+
+          {/* Type toggle: None / Review / List */}
+          <div className="mb-4 flex gap-2">
+            {(["none", "review", "list"] as const).map((opt) => {
+              const active = opt === "none" ? showcaseType === null : showcaseType === opt;
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setShowcaseType(opt === "none" ? null : opt)}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+                    active
+                      ? "border-violet-500/50 bg-violet-500/10 text-violet-300"
+                      : "border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-zinc-300"
+                  }`}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Review mode */}
+          {showcaseType === "review" && (
+            <div>
+              <select
+                value={featuredReviewId ?? ""}
+                onChange={(e) => setFeaturedReviewId(e.target.value || null)}
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">Select a review…</option>
+                {userReviews.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.games?.title ?? "Unknown game"}
+                    {r.body ? ` — ${r.body.slice(0, 60)}${r.body.length > 60 ? "…" : ""}` : ""}
+                  </option>
+                ))}
+              </select>
+              {userReviews.length === 0 && (
+                <p className="mt-1.5 text-xs text-zinc-600">You have no published reviews yet.</p>
+              )}
+            </div>
+          )}
+
+          {/* List mode */}
+          {showcaseType === "list" && (
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs text-zinc-500">List 1</label>
+                <select
+                  value={showcaseList1Id ?? ""}
+                  onChange={(e) => setShowcaseList1Id(e.target.value || null)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="">None</option>
+                  {userLists.map((l) => (
+                    <option key={l.id} value={l.id}>{l.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs text-zinc-500">List 2 (optional)</label>
+                <select
+                  value={showcaseList2Id ?? ""}
+                  onChange={(e) => setShowcaseList2Id(e.target.value || null)}
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value="">None</option>
+                  {userLists.filter((l) => l.id !== showcaseList1Id).map((l) => (
+                    <option key={l.id} value={l.id}>{l.title}</option>
+                  ))}
+                </select>
+              </div>
+              {userLists.length === 0 && (
+                <p className="text-xs text-zinc-600">You have no lists yet.</p>
+              )}
+            </div>
           )}
         </div>
 

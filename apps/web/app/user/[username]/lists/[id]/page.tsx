@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
 import { ListLikeButton } from "./ListLikeButton";
+import { PinShowcaseButton } from "./PinShowcaseButton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,10 +44,10 @@ export default async function ListDetailPage({
   const { username, id } = params;
   const supabase = await createClient();
 
-  // Profile lookup
+  // Profile lookup (include showcase columns to determine pin state)
   const { data: rawProfile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url")
+    .select("id, username, display_name, avatar_url, showcase_list_1_id, showcase_list_2_id")
     .eq("username", username)
     .maybeSingle();
   const profile = rawProfile as {
@@ -54,6 +55,8 @@ export default async function ListDetailPage({
     username: string;
     display_name: string | null;
     avatar_url: string | null;
+    showcase_list_1_id: string | null;
+    showcase_list_2_id: string | null;
   } | null;
   if (!profile) notFound();
 
@@ -90,6 +93,11 @@ export default async function ListDetailPage({
   const isOwnProfile = user?.id === profile.id;
   const isLiked      = user ? likes.some((l) => l.user_id === user.id) : false;
   const likeCount    = likes.length;
+
+  const pinState =
+    profile.showcase_list_1_id === id ? "slot1" :
+    profile.showcase_list_2_id === id ? "slot2" :
+    "none";
 
   const displayName = profile.display_name ?? profile.username;
   const createdAt   = new Date(list.created_at).toLocaleDateString("en-GB", {
@@ -173,6 +181,13 @@ export default async function ListDetailPage({
             initialLikeCount={likeCount}
             initialIsLiked={isLiked}
           />
+          {isOwnProfile && (
+            <PinShowcaseButton
+              listId={id}
+              profileId={profile.id}
+              initialPinState={pinState}
+            />
+          )}
         </div>
       </div>
 
