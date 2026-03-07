@@ -270,7 +270,6 @@ export default async function UserProfilePage({
 
   // ── 3. Derived values ───────────────────────────────────────────────────────
   const currentlyPlaying = logs.filter((l) => l.status === "playing");
-  const totalPlayed = logs.filter((l) => l.status === "played").length;
   const isOwnProfile = user?.id === profile.id;
 
   // if we're looking at our own profile, count *all* lists rather than just
@@ -355,30 +354,29 @@ export default async function UserProfilePage({
           )}
 
           {/* Stats row */}
-          <div className="mt-4 flex flex-wrap items-center gap-5">
-            <StatPill value={logs.length} label="Games Logged" />
-            <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
-            <StatPill value={totalPlayed} label="Played" />
-            <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
-            <StatPill value={reviews.length} label="Reviews" />
-            <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
-            <StatLinkPill
-              value={listsCount}
-              label="Lists"
-              href={`/user/${profile.username}/lists`}
-            />
-            <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
-            <StatLinkPill
-              value={followerCount}
-              label="Followers"
-              href={`/user/${profile.username}/followers`}
-            />
-            <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
-            <StatLinkPill
-              value={followingCount}
-              label="Following"
-              href={`/user/${profile.username}/following`}
-            />
+          <div className="mt-4 flex w-full items-center justify-between">
+            <div className="flex items-center gap-6">
+              <StatPill value={logs.length} label="Games Logged" />
+              <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
+              <StatLinkPill
+                value={listsCount}
+                label="Lists"
+                href={`/user/${profile.username}/lists`}
+              />
+            </div>
+            <div className="flex items-center gap-6">
+              <StatLinkPill
+                value={followerCount}
+                label="Followers"
+                href={`/user/${profile.username}/followers`}
+              />
+              <div className="h-6 w-px bg-zinc-800" aria-hidden="true" />
+              <StatLinkPill
+                value={followingCount}
+                label="Following"
+                href={`/user/${profile.username}/following`}
+              />
+            </div>
           </div>
         </div>
       </section>
