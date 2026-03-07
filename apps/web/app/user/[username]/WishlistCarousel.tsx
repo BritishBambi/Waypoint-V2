@@ -63,21 +63,19 @@ export function WishlistCarousel({ items }: { items: WishlistItem[] }) {
         </button>
       )}
 
-      {/* ── Clip wrapper ─────────────────────────────────────────────────────── */}
-      <div className="overflow-hidden">
-        <div
-          ref={scrollRef}
-          onScroll={updateArrows}
-          className="grid grid-flow-col gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          style={{ gridAutoColumns: "minmax(110px, 1fr)" }}
-        >
+      {/* ── Scroll container ─────────────────────────────────────────────────── */}
+      <div
+        ref={scrollRef}
+        onScroll={updateArrows}
+        className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
           {items.map(({ id, games }) => {
             if (!games) return null;
             const isUnreleased =
               games.release_date != null &&
               new Date(games.release_date).getTime() > Date.now();
             return (
-              <div key={id} className="group flex flex-col gap-1.5">
+              <div key={id} className="group w-[110px] shrink-0 flex flex-col gap-1.5">
                 <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800">
                   <Link href={`/games/${games.slug}`} className="block h-full">
                     {games.cover_url ? (
@@ -113,7 +111,6 @@ export function WishlistCarousel({ items }: { items: WishlistItem[] }) {
               </div>
             );
           })}
-        </div>
       </div>
 
       {/* ── Right arrow ──────────────────────────────────────────────────────── */}
