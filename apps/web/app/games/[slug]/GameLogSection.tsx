@@ -17,6 +17,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useGameLog, gameLogKey } from "@waypoint/api-client";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/lib/toast";
+import { formatStatus } from "@/lib/formatStatus";
 import type { LogSummary } from "./page";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ interface Game {
 
 const STATUSES = [
   { value: "playing",  label: "Playing" },
-  { value: "played",   label: "Played" },
+  { value: "played",   label: "Completed" },
   { value: "wishlist", label: "Wishlist" },
   { value: "dropped",  label: "Dropped" },
 ] as const;
@@ -107,7 +108,7 @@ export function GameLogSection({ game, userId, existingLog }: Props) {
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M20 6L9 17l-5-5" />
           </svg>
-          {STATUSES.find((s) => s.value === log.status)?.label ?? log.status}
+          {formatStatus(log.status)}
           <span className="text-current opacity-60">· Edit</span>
         </button>
       ) : (

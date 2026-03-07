@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import type { Tables } from "@waypoint/types";
 import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
+import { formatStatus } from "@/lib/formatStatus";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,10 +34,6 @@ const STATUS_BADGE: Record<string, string> = {
   shelved:  "bg-zinc-700/30   text-zinc-400   border-zinc-700/50",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  playing: "Playing", played: "Played", wishlist: "Wishlist",
-  dropped: "Dropped", shelved: "Shelved",
-};
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -181,7 +178,7 @@ export default async function LibraryPage({ params }: Props) {
                 <span
                   className={`self-start rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.shelved}`}
                 >
-                  {STATUS_LABEL[status] ?? status}
+                  {formatStatus(status)}
                 </span>
 
               </div>

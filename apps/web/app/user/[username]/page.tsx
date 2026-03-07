@@ -85,10 +85,6 @@ const STATUS_BADGE: Record<string, string> = {
   shelved:  "bg-zinc-700/30   text-zinc-400   border-zinc-700/50",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  playing: "Playing", played: "Played", wishlist: "Wishlist",
-  dropped: "Dropped", shelved: "Shelved",
-};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

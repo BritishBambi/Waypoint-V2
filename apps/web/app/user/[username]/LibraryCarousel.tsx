@@ -10,6 +10,7 @@ import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { igdbCover } from "@/lib/igdb";
+import { formatStatus } from "@/lib/formatStatus";
 
 export type LibraryItem = {
   id: string;
@@ -31,10 +32,6 @@ const STATUS_BADGE: Record<string, string> = {
   shelved:  "bg-zinc-700/30   text-zinc-400   border-zinc-700/50",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  playing: "Playing", played: "Played", wishlist: "Wishlist",
-  dropped: "Dropped", shelved: "Shelved",
-};
 
 export function LibraryCarousel({ items }: { items: LibraryItem[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -138,7 +135,7 @@ export function LibraryCarousel({ items }: { items: LibraryItem[] }) {
 
                 {/* Status badge — self-start prevents flex-stretch to full width */}
                 <span className={`self-start rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.shelved}`}>
-                  {STATUS_LABEL[status] ?? status}
+                  {formatStatus(status)}
                 </span>
 
               </div>
