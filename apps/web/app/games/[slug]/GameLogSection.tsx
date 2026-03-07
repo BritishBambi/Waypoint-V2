@@ -155,6 +155,41 @@ export function GameLogSection({ game, userId, existingLog }: Props) {
   );
 }
 
+// ─── StatusButton ─────────────────────────────────────────────────────────────
+
+function StatusButton({
+  value, label, current, onSelect, onWishlistWithNote, note, className = "",
+}: {
+  value: Status;
+  label: string;
+  current: Status | null;
+  onSelect: (s: Status | null) => void;
+  onWishlistWithNote: () => void;
+  note: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const next = current === value ? null : value;
+        if (next === "wishlist" && note.trim()) {
+          onWishlistWithNote();
+        } else {
+          onSelect(next);
+        }
+      }}
+      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+        current === value
+          ? "border-indigo-500 bg-indigo-500/20 text-indigo-300"
+          : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"
+      } ${className}`}
+    >
+      {label}
+    </button>
+  );
+}
+
 // ─── LogModal ─────────────────────────────────────────────────────────────────
 
 interface ModalProps {
@@ -395,29 +430,28 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
             <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500">
               Status
             </label>
-            <div className={`grid gap-2 ${visibleStatuses.length === 1 ? "grid-cols-1" : visibleStatuses.length >= 5 ? "grid-cols-3 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"}`}>
-              {visibleStatuses.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => {
-                    const next = status === value ? null : value;
-                    if (next === "wishlist" && note.trim()) {
-                      setPendingStatus("wishlist");
-                    } else {
-                      setStatus(next);
-                    }
-                  }}
-                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                    status === value
-                      ? "border-indigo-500 bg-indigo-500/20 text-indigo-300"
-                      : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            {visibleStatuses.length === 1 ? (
+              /* Unreleased — only Wishlist */
+              <div className="grid grid-cols-1 gap-2">
+                {visibleStatuses.map(({ value, label }) => (
+                  <StatusButton key={value} value={value} label={label} current={status} onSelect={setStatus} onWishlistWithNote={() => setPendingStatus("wishlist")} note={note} />
+                ))}
+              </div>
+            ) : (
+              /* Released — two rows: [Playing, Completed, Dropped] / [Backlog, Wishlist] */
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2">
+                  {visibleStatuses.slice(0, 3).map(({ value, label }) => (
+                    <StatusButton key={value} value={value} label={label} current={status} onSelect={setStatus} onWishlistWithNote={() => setPendingStatus("wishlist")} note={note} className="flex-1" />
+                  ))}
+                </div>
+                <div className="flex justify-center gap-2">
+                  {visibleStatuses.slice(3).map(({ value, label }) => (
+                    <StatusButton key={value} value={value} label={label} current={status} onSelect={setStatus} onWishlistWithNote={() => setPendingStatus("wishlist")} note={note} className="w-32" />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Rating (optional) — shown for Playing and Completed only */}
