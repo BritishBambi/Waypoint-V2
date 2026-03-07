@@ -584,9 +584,12 @@ function ReviewCard({ review }: { review: ReviewWithGame }) {
   if (!games) return null;
 
   return (
-    <div className="flex gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-      {/* Small cover — links to game page */}
-      <Link href={`/games/${games.slug}`} className="group shrink-0">
+    <div className="relative flex gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-white/20 hover:bg-white/5">
+      {/* Stretched link — makes the whole card navigate to the review page */}
+      <Link href={`/review/${id}`} className="absolute inset-0 rounded-xl" aria-label={`Read review for ${games.title}`} />
+
+      {/* Small cover — links to game page (z-10 so it sits above the stretched link) */}
+      <Link href={`/games/${games.slug}`} className="group relative z-10 shrink-0">
         <div className="relative h-[72px] w-12 overflow-hidden rounded-md bg-zinc-800">
           {games.cover_url ? (
             <Image
@@ -603,14 +606,9 @@ function ReviewCard({ review }: { review: ReviewWithGame }) {
         </div>
       </Link>
 
-      {/* Text content */}
-      <div className="min-w-0 flex-1">
-        <Link
-          href={`/review/${id}`}
-          className="font-medium text-white transition-colors hover:text-indigo-300"
-        >
-          {games.title}
-        </Link>
+      {/* Text content — z-10 so SpoilerReveal button is clickable */}
+      <div className="relative z-10 min-w-0 flex-1">
+        <p className="font-medium text-white">{games.title}</p>
 
         {/* Star rating */}
         <div className="mt-1 flex items-center gap-1">
