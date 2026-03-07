@@ -80,7 +80,10 @@ export function ReviewSection({
     })));
   }
 
-  const canWrite = !!userId && !!existingLog && !hasReview;
+  const canReview =
+    existingLog?.status === "playing" ||
+    existingLog?.status === "played";
+  const canWrite = !!userId && canReview && !hasReview;
   const autoRevealSpoilers =
     existingLog?.status === "played" ||
     existingLog?.status === "playing" ||
