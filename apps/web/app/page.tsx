@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
 import { formatStatus } from "@/lib/formatStatus";
 import { PopularCarousel } from "./PopularCarousel";
+import { UpcomingCarousel } from "./UpcomingCarousel";
 import { WelcomeToast } from "@/components/WelcomeToast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -45,6 +46,15 @@ type OwnLog = {
   id: string;
   status: string;
   games: GameStub | null;
+};
+
+export type UpcomingGame = {
+  id: number;
+  slug: string;
+  title: string;
+  cover_url: string | null;
+  release_date_unix: number | null;
+  hypes: number | null;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -102,9 +112,9 @@ export default async function Home({
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const anonKey    = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-    // Phase 1: profile, follows, own library, and IGDB popular games (all parallel).
+    // Phase 1: profile, follows, own library, IGDB popular games, and upcoming games (all parallel).
     // igdb-popular is tried first; Waypoint game_logs is used only as a fallback.
-    const [profileRes, followRes, ownRes, igdbPopularGames] = await Promise.all([
+    const [profileRes, followRes, ownRes, igdbPopularGames, igdbUpcomingGames] = await Promise.all([
       supabase
         .from("profiles")
         .select("username, display_name")
@@ -140,11 +150,29 @@ export default async function Home({
           return (data.results as GameStub[]) ?? null;
         })
         .catch(() => null),
+
+      // IGDB upcoming games — releases in the next 6 months sorted by hype.
+      fetch(`${supabaseUrl}/functions/v1/igdb-upcoming`, {
+        method: "POST",
+        headers: {
+          "apikey": anonKey,
+          "Authorization": `Bearer ${anonKey}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      })
+        .then(async (res) => {
+          if (!res.ok) return null;
+          const data = await res.json();
+          return (data.results as UpcomingGame[]) ?? null;
+        })
+        .catch(() => null),
     ]);
 
     const profile     = profileRes.data as { username: string; display_name: string | null } | null;
     const followRows  = followRes.data as Array<{ followee_id: string }> | null;
     const followedIds = (followRows ?? []).map((r) => r.followee_id);
+    const upcomingGames: UpcomingGame[] = igdbUpcomingGames ?? [];
 
     // Use IGDB results if available; otherwise fall back to most-logged on Waypoint.
     let popularGames: GameStub[] = igdbPopularGames ?? [];
@@ -316,6 +344,34 @@ export default async function Home({
           )}
         </section>
 
+        {/* ── Coming Soon ───────────────────────────────────────────────────── */}
+        {upcomingGames.length > 0 && (
+          <section className="mb-10">
+            <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-white">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-indigo-400"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              Coming Soon
+            </h2>
+            <UpcomingCarousel games={upcomingGames} />
+          </section>
+        )}
+
         {/* ── Library shortcut ──────────────────────────────────────────────── */}
         <section>
           <div className="mb-4 flex items-center justify-between">
@@ -384,7 +440,7 @@ export default async function Home({
   const heroSlug =
     HERO_GAME_SLUGS[Math.floor(Math.random() * HERO_GAME_SLUGS.length)];
 
-  const [popularRes, heroDetailRes] = await Promise.all([
+  const [popularRes, heroDetailRes, upcomingRes] = await Promise.all([
     fetch(`${supabaseUrl}/functions/v1/igdb-popular`, {
       method: "POST",
       headers: {
@@ -405,12 +461,28 @@ export default async function Home({
       body: JSON.stringify({ slug: heroSlug }),
       next: { revalidate: 3600 },
     }).catch(() => null),
+
+    fetch(`${supabaseUrl}/functions/v1/igdb-upcoming`, {
+      method: "POST",
+      headers: {
+        "apikey": anonKey,
+        "Authorization": `Bearer ${anonKey}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    }).catch(() => null),
   ]);
 
   let popularGames: GameStub[] = [];
   if (popularRes?.ok) {
     const data = await popularRes.json();
     popularGames = (data.results as GameStub[]) ?? [];
+  }
+
+  let upcomingGamesLoggedOut: UpcomingGame[] = [];
+  if (upcomingRes?.ok) {
+    const data = await upcomingRes.json();
+    upcomingGamesLoggedOut = (data.results as UpcomingGame[]) ?? [];
   }
 
   // Hero background: artwork-first (marketing moment), screenshot fallback.
@@ -527,6 +599,36 @@ export default async function Home({
               Popular Right Now
             </h2>
             <PopularCarousel games={popularGames} />
+          </div>
+        </section>
+      )}
+
+      {/* ── Coming Soon ─────────────────────────────────────────────────────── */}
+      {upcomingGamesLoggedOut.length > 0 && (
+        <section className="bg-zinc-950 px-4 pb-20">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="mb-6 flex items-center gap-2 text-base font-semibold text-white">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-indigo-400"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              Coming Soon
+            </h2>
+            <UpcomingCarousel games={upcomingGamesLoggedOut} />
           </div>
         </section>
       )}
