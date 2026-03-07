@@ -48,6 +48,14 @@ type ReviewWithGame = {
   games: GameStub | null;
 };
 
+type FeaturedReview = {
+  id: string;
+  rating: number;
+  body: string | null;
+  is_spoiler: boolean;
+  games: (GameStub & { release_date: string | null }) | null;
+};
+
 type FavouriteSlot = {
   position: number;
   games: GameStub | null;
@@ -229,6 +237,19 @@ export default async function UserProfilePage({
     list_likes: Array<{ id: string }>;
   }>;
 
+  // ── Featured review (showcase) ─────────────────────────────────────────────
+  const featuredReviewId = (profile as any).featured_review_id as string | null;
+  let featuredReview: FeaturedReview | null = null;
+  if (featuredReviewId) {
+    const { data: rawFeatured } = await supabase
+      .from("reviews")
+      .select("id, rating, body, is_spoiler, games(id, slug, title, cover_url, release_date)")
+      .eq("id", featuredReviewId)
+      .eq("is_draft", false)
+      .maybeSingle();
+    featuredReview = rawFeatured as unknown as FeaturedReview | null;
+  }
+
   // Build a 5-element array indexed by position (0 = position 1).
   const favouriteSlots: (GameStub | null)[] = [null, null, null, null, null];
   for (const row of favRows) {
@@ -352,6 +373,14 @@ export default async function UserProfilePage({
           </div>
         </div>
       </section>
+
+      {/* ── Showcase Review ──────────────────────────────────────────────────── */}
+      {featuredReview && (
+        <section className="mt-10">
+          <h2 className="mb-4 text-base font-semibold text-white">Showcase Review</h2>
+          <ShowcaseCard review={featuredReview} />
+        </section>
+      )}
 
       {/* ── Favourite Games ──────────────────────────────────────────────────── */}
       {/* Hidden entirely when the profile has no favourites and it's not the owner */}
@@ -611,6 +640,81 @@ function ReviewCard({ review }: { review: ReviewWithGame }) {
 
         {published_at && (
           <p className="mt-2 text-xs text-zinc-600">{formatDate(published_at)}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Showcase / featured review card — prominent single card with "✦ Showcase" badge
+function ShowcaseCard({ review }: { review: FeaturedReview }) {
+  const { id, rating, body, is_spoiler, games } = review;
+  if (!games) return null;
+  const year = games.release_date ? games.release_date.slice(0, 4) : null;
+  const truncated = body && body.length > 300 ? body.slice(0, 300) + "…" : body;
+
+  return (
+    <div className="relative flex gap-5 rounded-xl border border-violet-500/20 bg-zinc-900 p-5">
+      {/* ✦ Showcase badge */}
+      <span className="absolute right-4 top-4 text-xs font-medium text-violet-400">✦ Showcase</span>
+
+      {/* Cover */}
+      <Link href={`/games/${games.slug}`} className="group shrink-0">
+        <div className="relative h-20 w-[53px] overflow-hidden rounded-md bg-zinc-800">
+          {games.cover_url ? (
+            <Image
+              src={games.cover_url.replace(/\/t_[^/]+\//, "/t_720p/")}
+              alt={games.title}
+              fill
+              sizes="53px"
+              quality={90}
+              className="object-cover transition-transform duration-200 group-hover:scale-105"
+            />
+          ) : (
+            <NoCover />
+          )}
+        </div>
+      </Link>
+
+      {/* Text */}
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex flex-wrap items-baseline gap-2">
+          <Link
+            href={`/games/${games.slug}`}
+            className="font-semibold text-white transition-colors hover:text-indigo-300"
+          >
+            {games.title}
+          </Link>
+          {year && <span className="text-sm text-zinc-500">{year}</span>}
+        </div>
+
+        {/* Star rating */}
+        <div className="mb-2 flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400" aria-hidden="true">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+          <span className="text-sm font-semibold text-white">{rating}</span>
+          <span className="text-xs text-zinc-500">/5</span>
+        </div>
+
+        {/* Body */}
+        {body && is_spoiler ? (
+          <SpoilerReveal body={body} />
+        ) : truncated ? (
+          <p className="text-sm leading-relaxed text-zinc-400">
+            {truncated}
+            {body && body.length > 300 && (
+              <Link href={`/review/${id}`} className="ml-1 text-indigo-400 transition-colors hover:text-indigo-300">
+                Read more…
+              </Link>
+            )}
+          </p>
+        ) : null}
+
+        {body && !is_spoiler && body.length <= 300 && (
+          <Link href={`/review/${id}`} className="mt-2 block text-xs text-zinc-500 transition-colors hover:text-zinc-300">
+            Read full review →
+          </Link>
         )}
       </div>
     </div>

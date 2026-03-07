@@ -26,6 +26,13 @@ type Profile = Tables<"profiles">;
 // A minimal game shape used for the favourite slots.
 type FavGame = Pick<GameSearchResult, "id" | "slug" | "title" | "cover_url">;
 
+type ReviewOption = {
+  id: string;
+  body: string | null;
+  rating: number;
+  games: { title: string } | null;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const AVATAR_COLORS = [
@@ -74,6 +81,12 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     modalOpen ? modalQuery : ""
   );
 
+  // ── Showcase review state ─────────────────────────────────────────────────────
+  const [featuredReviewId, setFeaturedReviewId] = useState<string | null>(
+    (profile as any).featured_review_id ?? null
+  );
+  const [userReviews, setUserReviews] = useState<ReviewOption[]>([]);
+
   // ── UI state ─────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
   const [toast, setToast]   = useState<string | null>(null);
@@ -102,6 +115,21 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
           }
         }
         setSlots(next);
+      });
+  }, [profile.id]);
+
+  // Load user's published reviews for the showcase picker.
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("reviews")
+      .select("id, body, rating, games(title)")
+      .eq("user_id", profile.id)
+      .eq("is_draft", false)
+      .not("published_at", "is", null)
+      .order("published_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) setUserReviews(data as unknown as ReviewOption[]);
       });
   }, [profile.id]);
 
@@ -241,11 +269,12 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
 
     // ── 2. Update profile row ──────────────────────────────────────────────────
     const trimmedUsername = username.trim();
-    const payload: Partial<Profile> = {
+    const payload: Partial<Profile> & { featured_review_id?: string | null } = {
       display_name: displayName.trim() || null,
       username:     trimmedUsername,
       bio:          bio.trim() || null,
       website:      website.trim() || null,
+      featured_review_id: featuredReviewId,
     };
     if (newAvatarUrl !== undefined) payload.avatar_url = newAvatarUrl;
 
@@ -679,6 +708,30 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
               )}
             </Droppable>
           </DragDropContext>
+        </div>
+
+        {/* ── Showcase Review ───────────────────────────────────────────────────── */}
+        <div>
+          <p className="mb-1 text-sm font-medium text-zinc-300">Showcase Review</p>
+          <p className="mb-3 text-xs text-zinc-500">
+            Pin one of your reviews to the top of your profile.
+          </p>
+          <select
+            value={featuredReviewId ?? ""}
+            onChange={(e) => setFeaturedReviewId(e.target.value || null)}
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            <option value="">None</option>
+            {userReviews.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.games?.title ?? "Unknown game"}
+                {r.body ? ` — ${r.body.slice(0, 60)}${r.body.length > 60 ? "…" : ""}` : ""}
+              </option>
+            ))}
+          </select>
+          {userReviews.length === 0 && (
+            <p className="mt-1.5 text-xs text-zinc-600">You have no published reviews yet.</p>
+          )}
         </div>
 
         {/* ── Global error ───────────────────────────────────────────────────────── */}

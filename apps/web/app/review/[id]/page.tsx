@@ -74,15 +74,23 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
         .limit(100),
     ]);
 
+  const isOwner = !!user && user.id === review.user_id;
   let userHasLiked = false;
+  let isPinned = false;
   if (user) {
-    const { data: likeRow } = await (supabase as any)
-      .from("review_likes")
-      .select("id")
-      .eq("review_id", id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const [{ data: likeRow }, { data: ownerProfile }] = await Promise.all([
+      (supabase as any)
+        .from("review_likes")
+        .select("id")
+        .eq("review_id", id)
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      isOwner
+        ? supabase.from("profiles").select("featured_review_id").eq("id", user.id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
     userHasLiked = !!likeRow;
+    isPinned = (ownerProfile as any)?.featured_review_id === id;
   }
 
   const game = rawGame as {
@@ -95,7 +103,6 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
   const displayName = author?.display_name ?? author?.username ?? "Anonymous";
   const year = game?.release_date ? game.release_date.slice(0, 4) : null;
   const coverUrl = igdbCover(game?.cover_url ?? null, "t_cover_big");
-  const isOwner = !!user && user.id === review.user_id;
 
   const dateStr = review.published_at
     ? new Date(review.published_at).toLocaleDateString("en-GB", {
@@ -178,6 +185,7 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
             initialBody={review.body}
             initialRating={review.rating}
             initialIsSpoiler={review.is_spoiler}
+            initialIsPinned={isPinned}
             gameSlug={game?.slug ?? ""}
             startEditing={startEditing}
             likeCount={likeCount ?? 0}

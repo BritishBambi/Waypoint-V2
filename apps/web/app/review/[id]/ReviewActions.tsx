@@ -20,6 +20,7 @@ interface Props {
   initialBody: string | null;
   initialRating: number;
   initialIsSpoiler: boolean;
+  initialIsPinned: boolean;
   gameSlug: string;
   startEditing: boolean;     // true when ?edit=true is in the URL
   likeCount: number;
@@ -35,6 +36,7 @@ export function ReviewActions({
   initialBody,
   initialRating,
   initialIsSpoiler,
+  initialIsPinned,
   gameSlug,
   startEditing,
   likeCount,
@@ -46,6 +48,7 @@ export function ReviewActions({
   const [body, setBody]         = useState(initialBody ?? "");
   const [rating, setRating]     = useState(initialRating);
   const [isSpoiler, setIsSpoiler] = useState(initialIsSpoiler);
+  const [isPinned, setIsPinned] = useState(initialIsPinned);
   const [saving, setSaving]     = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -95,6 +98,19 @@ export function ReviewActions({
     setTimeout(() => router.push(`/games/${gameSlug}`), 600);
   }
 
+  async function handlePin() {
+    const supabase = createClient();
+    const newFeaturedId = isPinned ? null : reviewId;
+    const { error } = await (supabase as any)
+      .from("profiles")
+      .update({ featured_review_id: newFeaturedId })
+      .eq("id", userId!);
+    if (!error) {
+      setIsPinned(!isPinned);
+      showToast(isPinned ? "Removed from showcase" : "Pinned to showcase ✦");
+    }
+  }
+
   // ─── Read view ─────────────────────────────────────────────────────────────
 
   if (mode === "read") {
@@ -129,6 +145,16 @@ export function ReviewActions({
 
           {isOwner && (
             <div className="flex items-center gap-2">
+              <button
+                onClick={handlePin}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  isPinned
+                    ? "border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+                    : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"
+                }`}
+              >
+                ✦ {isPinned ? "Pinned to showcase" : "Pin to showcase"}
+              </button>
               <button
                 onClick={() => setMode("edit")}
                 className="flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-400 transition-colors hover:border-zinc-500 hover:text-white"
