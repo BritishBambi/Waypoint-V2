@@ -180,8 +180,12 @@ Deno.serve(async (req) => {
   // it is always absent/undefined for every game regardless of actual category).
   // Instead we rely on two relationship fields that ARE reliably returned:
   //   version_parent — set on editions (Ultimate, Day One, Collector's, etc.)
-  //   parent_game    — set on DLC, expansions, updates (Phantom Liberty, Edgerunners Update, etc.)
-  // Any game with either field set is NOT a standalone base game and is excluded.
+  //   parent_game    — set on DLC, expansions, remakes, sequels, etc.
+  //
+  // We only filter on version_parent (always editions/variants of the same release).
+  // parent_game is NOT filtered — it covers remakes (RE2 2019, Dead Space 2023),
+  // sequels in a series, and spin-offs, which are all legitimate search results.
+  // The three-tier sort naturally pushes canonical/popular entries to the top.
 
   // Adult content keywords — checked as substrings of the lowercased title.
   const ADULT_KEYWORDS = ["sex", "porn", "hentai", "eroge", "adult", "xxx"];
@@ -194,7 +198,7 @@ Deno.serve(async (req) => {
   // ensures they are always surfaced when present in a query's raw results or
   // can be fetched directly by ID.
   //   121    — Minecraft: Java Edition (IGDB search doesn't return it in top 50)
-  //   135400 — Minecraft (Bedrock Edition) (filtered out due to parent_game=121)
+  //   135400 — Minecraft (Bedrock Edition)
   const ALLOWLIST_IDS = [121, 135400];
 
   // ── Step 1: Filter ─────────────────────────────────────────────────────────
@@ -202,9 +206,8 @@ Deno.serve(async (req) => {
     // Allowlisted IDs bypass all filters — we unconditionally want them.
     .filter((g) => ALLOWLIST_IDS.includes(g.id) || (
       // Exclude editions of other games (Ultimate Edition, Day One, etc.).
+      // version_parent is set specifically on editions/variants, not remakes.
       g.version_parent == null &&
-      // Exclude DLC, expansions, updates — they have a parent_game reference.
-      g.parent_game == null &&
       // Must have a cover — no cover is a strong signal of a junk/test entry.
       !!g.cover?.url &&
       // Rating threshold: require ≥ 10 ratings, OR unrated (null) is allowed.
