@@ -176,6 +176,10 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
   const [note, setNote] = useState("");
   const [isSpoiler, setIsSpoiler] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<Status | null>(null);
+
+  const showRating = status === "playing" || status === "played";
+  const showNotes = status !== null && status !== "wishlist";
 
   async function handleSave() {
     setIsSaving(true);
@@ -360,7 +364,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl">
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl">
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
@@ -394,7 +398,14 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setStatus(status === value ? null : value)}
+                  onClick={() => {
+                    const next = status === value ? null : value;
+                    if (next === "wishlist" && note.trim()) {
+                      setPendingStatus("wishlist");
+                    } else {
+                      setStatus(next);
+                    }
+                  }}
                   className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                     status === value
                       ? "border-indigo-500 bg-indigo-500/20 text-indigo-300"
@@ -407,16 +418,16 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
             </div>
           </div>
 
-          {/* Rating (optional) */}
-          <div>
+          {/* Rating (optional) — shown for Playing and Completed only */}
+          <div className={`overflow-hidden transition-all duration-200 ${showRating ? "max-h-16 opacity-100" : "max-h-0 opacity-0"}`}>
             <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500">
               Your Rating <span className="normal-case text-zinc-600">(optional)</span>
             </label>
             <StarPicker value={rating} onChange={setRating} />
           </div>
 
-          {/* Diary note (optional) */}
-          <div>
+          {/* Diary note (optional) — hidden for Wishlist */}
+          <div className={`overflow-hidden transition-all duration-200 ${showNotes ? "max-h-64 opacity-100" : "max-h-0 opacity-0"}`}>
             <label
               htmlFor="log-note"
               className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500"
@@ -432,7 +443,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
               placeholder="What did you think?"
               className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
-            {note.trim() && (
+            {note.trim() && showNotes && (
               <label className="mt-2.5 flex cursor-pointer select-none items-center gap-2 group">
                 <div
                   onClick={() => setIsSpoiler(!isSpoiler)}
@@ -445,6 +456,39 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
             )}
           </div>
         </div>
+
+        {/* Wishlist-switch warning dialog */}
+        {pendingStatus !== null && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-zinc-900/95 p-6 backdrop-blur-sm">
+            <div className="w-full max-w-xs space-y-4">
+              <p className="text-sm leading-relaxed text-zinc-300">
+                Switching to Wishlist will remove your rating and review. Continue?
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPendingStatus(null)}
+                  className="rounded-lg px-4 py-2 text-sm text-zinc-400 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatus(pendingStatus);
+                    setNote("");
+                    setRating(0);
+                    setIsSpoiler(false);
+                    setPendingStatus(null);
+                  }}
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500"
+                >
+                  Yes, switch
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex justify-end gap-3 border-t border-zinc-800 px-6 py-4">
