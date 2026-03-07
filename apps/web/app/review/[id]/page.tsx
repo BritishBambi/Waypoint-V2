@@ -55,7 +55,7 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
     profiles: { username: string | null; display_name: string | null; avatar_url: string | null } | null;
   };
 
-  const [{ data: rawGame }, { data: rawReactions }, { data: rawComments }] =
+  const [{ data: rawGame }, { data: rawReactions }, { data: rawComments }, { data: rawUserLog }] =
     await Promise.all([
       supabase
         .from("games")
@@ -72,6 +72,14 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
         .eq("review_id", id)
         .order("created_at", { ascending: true })
         .limit(100),
+      user
+        ? supabase
+            .from("game_logs")
+            .select("status")
+            .eq("user_id", user.id)
+            .eq("game_id", review.game_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
   // Aggregate reaction counts per emoji and collect the viewer's own reactions.
@@ -85,6 +93,11 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
     : [];
 
   const isOwner = !!user && user.id === review.user_id;
+  const userLogStatus = (rawUserLog as { status: string } | null)?.status ?? null;
+  const autoRevealSpoilers =
+    isOwner ||
+    userLogStatus === "played" ||
+    userLogStatus === "playing";
   let isPinned = false;
   if (user && isOwner) {
     const { data: ownerProfile } = await supabase
@@ -192,6 +205,7 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
             startEditing={startEditing}
             initialReactionCounts={reactionCounts}
             initialUserReactions={userReactions}
+            autoRevealSpoilers={autoRevealSpoilers}
           />
         </article>
 

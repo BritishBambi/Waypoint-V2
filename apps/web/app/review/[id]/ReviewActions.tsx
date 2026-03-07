@@ -25,6 +25,7 @@ interface Props {
   startEditing: boolean;     // true when ?edit=true is in the URL
   initialReactionCounts: Record<string, number>;
   initialUserReactions: string[];
+  autoRevealSpoilers: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -41,6 +42,7 @@ export function ReviewActions({
   startEditing,
   initialReactionCounts,
   initialUserReactions,
+  autoRevealSpoilers,
 }: Props) {
   const [mode, setMode] = useState<"read" | "edit" | "confirm-delete">(
     isOwner && startEditing ? "edit" : "read"
@@ -125,7 +127,7 @@ export function ReviewActions({
 
         {/* Body */}
         {isSpoiler ? (
-          <SpoilerBody body={body || null} />
+          <SpoilerBody body={body || null} autoRevealSpoilers={autoRevealSpoilers} />
         ) : body ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-300 sm:text-base">
             {body}
@@ -286,9 +288,19 @@ export function ReviewActions({
 
 // ─── SpoilerBody ──────────────────────────────────────────────────────────────
 
-function SpoilerBody({ body }: { body: string | null }) {
+function SpoilerBody({ body, autoRevealSpoilers }: { body: string | null; autoRevealSpoilers: boolean }) {
   const [revealed, setRevealed] = useState(false);
   if (!body) return <p className="text-sm italic text-zinc-600">No written review.</p>;
+
+  if (autoRevealSpoilers) {
+    return (
+      <>
+        <p className="mb-2 text-xs text-amber-500/70">⚠️ This review contains spoilers</p>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-300 sm:text-base">{body}</p>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="relative">

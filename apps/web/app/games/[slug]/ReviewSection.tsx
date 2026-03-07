@@ -81,6 +81,10 @@ export function ReviewSection({
   }
 
   const canWrite = !!userId && !!existingLog && !hasReview;
+  const autoRevealSpoilers =
+    existingLog?.status === "played" ||
+    existingLog?.status === "playing" ||
+    !!existingReview;
 
   return (
     <div className="mt-16">
@@ -133,7 +137,7 @@ export function ReviewSection({
       ) : (
         <div className="space-y-4">
           {reviews.map((review) => (
-            <ReviewCardWrapper key={review.id} review={review} userId={userId} />
+            <ReviewCardWrapper key={review.id} review={review} userId={userId} autoRevealSpoilers={autoRevealSpoilers} />
           ))}
         </div>
       )}
@@ -275,19 +279,21 @@ function WriteReviewForm({
 function ReviewCardWrapper({
   review,
   userId,
+  autoRevealSpoilers,
 }: {
   review: ReviewWithAuthor;
   userId: string | null;
+  autoRevealSpoilers: boolean;
 }) {
   const isAuthor = !!userId && userId === review.user_id;
-  return <ReviewCard review={review} isAuthor={isAuthor} />;
+  return <ReviewCard review={review} isAuthor={isAuthor} autoRevealSpoilers={autoRevealSpoilers} />;
 }
 
 // ─── ReviewCard ───────────────────────────────────────────────────────────────
 
 const TRUNCATE_AT = 200; // characters — full review lives at /review/[id]
 
-function ReviewCard({ review, isAuthor }: { review: ReviewWithAuthor; isAuthor: boolean }) {
+function ReviewCard({ review, isAuthor, autoRevealSpoilers }: { review: ReviewWithAuthor; isAuthor: boolean; autoRevealSpoilers: boolean }) {
   const author = review.profiles;
   const displayName = author?.display_name ?? author?.username ?? "Anonymous";
   const initials = displayName.slice(0, 2).toUpperCase();
@@ -369,7 +375,7 @@ function ReviewCard({ review, isAuthor }: { review: ReviewWithAuthor; isAuthor: 
       {/* Review body */}
       <div className="px-5 pb-3">
         {review.is_spoiler ? (
-          <SpoilerBlock body={bodyText} reviewId={review.id} isTruncated={isTruncated} />
+          <SpoilerBlock body={bodyText} reviewId={review.id} isTruncated={isTruncated} autoRevealSpoilers={autoRevealSpoilers} />
         ) : (
           <Link href={`/review/${review.id}`} className="block">
             {bodyText ? (
@@ -426,13 +432,30 @@ function SpoilerBlock({
   body,
   reviewId,
   isTruncated,
+  autoRevealSpoilers,
 }: {
   body: string | null | undefined;
   reviewId: string;
   isTruncated: boolean;
+  autoRevealSpoilers: boolean;
 }) {
   const [revealed, setRevealed] = useState(false);
   if (!body) return <p className="text-xs italic text-zinc-600">No written review.</p>;
+
+  if (autoRevealSpoilers) {
+    return (
+      <>
+        <p className="mb-1 text-xs text-amber-500/70">⚠️ This review contains spoilers</p>
+        <Link href={`/review/${reviewId}`} className="block">
+          <p className="text-sm leading-relaxed text-zinc-300">{body}</p>
+          {isTruncated && (
+            <span className="mt-2 inline-block text-xs font-medium text-indigo-400">Read more</span>
+          )}
+        </Link>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="relative">
