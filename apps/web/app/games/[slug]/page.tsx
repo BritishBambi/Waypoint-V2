@@ -111,7 +111,7 @@ export default async function GameDetailPage({ params }: Props) {
     supabase.auth.getUser(),
     supabase
       .from("reviews")
-      .select("*, profiles(username, display_name, avatar_url)")
+      .select("*, profiles!reviews_user_id_fkey(username, display_name, avatar_url)")
       .eq("game_id", game.id)
       .eq("is_draft", false)
       .not("published_at", "is", null)

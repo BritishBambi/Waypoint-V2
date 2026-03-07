@@ -43,7 +43,7 @@ export function ReviewSection({
     const supabase = createClient();
     const { data } = await supabase
       .from("reviews")
-      .select("*, profiles(username, display_name, avatar_url)")
+      .select("*, profiles!reviews_user_id_fkey(username, display_name, avatar_url)")
       .eq("game_id", gameId)
       .eq("is_draft", false)
       .not("published_at", "is", null)

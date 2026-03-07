@@ -42,7 +42,7 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
     supabase.auth.getUser(),
     supabase
       .from("reviews")
-      .select("*, profiles(username, display_name, avatar_url)")
+      .select("*, profiles!reviews_user_id_fkey(username, display_name, avatar_url)")
       .eq("id", id)
       .eq("is_draft", false)
       .not("published_at", "is", null)
