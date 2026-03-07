@@ -17,6 +17,7 @@ import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
 import { FollowButton } from "./FollowButton";
 import { LibraryCarousel } from "./LibraryCarousel";
+import { WishlistCarousel, type WishlistItem } from "./WishlistCarousel";
 import { ListCard, ListRow } from "@/components/ListCard";
 import { SpoilerReveal } from "./SpoilerReveal";
 
@@ -61,6 +62,7 @@ type FavouriteSlot = {
   games: GameStub | null;
 };
 
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // Fixed palette for generated avatars — consistent per username via hash.
@@ -80,8 +82,8 @@ const AVATAR_COLORS = [
 const STATUS_BADGE: Record<string, string> = {
   playing:  "bg-teal-500/20   text-teal-300   border-teal-500/40",
   played:   "bg-violet-500/20 text-violet-300 border-violet-500/40",
-  wishlist: "bg-amber-500/20  text-amber-300  border-amber-500/40",
   dropped:  "bg-red-900/30    text-red-400    border-red-800/50",
+  backlog:  "bg-sky-500/20    text-sky-300    border-sky-500/40",
   shelved:  "bg-zinc-700/30   text-zinc-400   border-zinc-700/50",
 };
 
@@ -128,6 +130,7 @@ export default async function UserProfilePage({
   // when mixing head:true count queries with data queries in one destructure.
   const [
     logsRes,
+    wishlistRes,
     reviewsRes,
     authRes,
     favsRes,
@@ -141,7 +144,16 @@ export default async function UserProfilePage({
         .from("game_logs")
         .select("id, status, updated_at, games(id, slug, title, cover_url)")
         .eq("user_id", profile.id)
+        .neq("status", "wishlist")
         .order("updated_at", { ascending: false }),
+
+      supabase
+        .from("game_logs")
+        .select("id, games(id, slug, title, cover_url, release_date)")
+        .eq("user_id", profile.id)
+        .eq("status", "wishlist")
+        .order("created_at", { ascending: false })
+        .limit(12),
 
       supabase
         .from("reviews")
@@ -198,6 +210,7 @@ export default async function UserProfilePage({
   const rawFavourites = favsRes.data;
   const followerCount = followerRes.count ?? 0;
   const followingCount = followingRes.count ?? 0;
+  const wishlistItems = (wishlistRes.data ?? []) as unknown as WishlistItem[];
   // we'll compute the final lists count after checking ownership
   let listsCount = publicListsCountRes.count ?? 0;
 
@@ -502,6 +515,25 @@ export default async function UserProfilePage({
           <LibraryCarousel items={logs} />
         )}
       </section>
+
+      {/* ── Wishlist ──────────────────────────────────────────────────────────── */}
+      {wishlistItems.length > 0 && (
+        <section className="mt-12">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-white">Wishlist</h2>
+            <Link
+              href={`/user/${profile.username}/wishlist`}
+              className="flex items-center gap-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+            >
+              View all
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </Link>
+          </div>
+          <WishlistCarousel items={wishlistItems} />
+        </section>
+      )}
 
       {/* ── Recent Lists ─────────────────────────────────────────────────────── */}
       {recentLists.length > 0 && (

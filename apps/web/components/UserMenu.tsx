@@ -109,6 +109,11 @@ export function UserMenu({ username, avatarUrl }: UserMenuProps) {
 
           <div className="my-1 border-t border-zinc-800" />
 
+          <MenuItem href={`/user/${username}/library`} onNavigate={() => setOpen(false)}>Library</MenuItem>
+          <MenuItem href={`/user/${username}/wishlist`} onNavigate={() => setOpen(false)}>Wishlist</MenuItem>
+
+          <div className="my-1 border-t border-zinc-800" />
+
           <MenuItem href={`/user/${username}/edit`} onNavigate={() => setOpen(false)}>Edit Profile</MenuItem>
           <MenuItem href="/lists/new" onNavigate={() => setOpen(false)}>Create List →</MenuItem>
 

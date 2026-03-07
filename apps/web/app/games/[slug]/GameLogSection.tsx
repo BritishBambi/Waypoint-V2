@@ -38,8 +38,9 @@ interface Game {
 const STATUSES = [
   { value: "playing",  label: "Playing" },
   { value: "played",   label: "Completed" },
-  { value: "wishlist", label: "Wishlist" },
   { value: "dropped",  label: "Dropped" },
+  { value: "backlog",  label: "Backlog" },
+  { value: "wishlist", label: "Wishlist" },
 ] as const;
 
 type Status = (typeof STATUSES)[number]["value"];
@@ -49,6 +50,7 @@ const STATUS_BADGE: Record<string, string> = {
   played:   "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
   wishlist: "bg-amber-500/20 text-amber-300 border-amber-500/40",
   dropped:  "bg-red-500/20 text-red-300 border-red-500/40",
+  backlog:  "bg-sky-500/20 text-sky-300 border-sky-500/40",
   shelved:  "bg-zinc-500/20 text-zinc-300 border-zinc-500/40",
 };
 
@@ -179,7 +181,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
   const [pendingStatus, setPendingStatus] = useState<Status | null>(null);
 
   const showRating = status === "playing" || status === "played";
-  const showNotes = status !== null && status !== "wishlist";
+  const showNotes = status === "playing" || status === "played" || status === "dropped";
 
   async function handleSave() {
     setIsSaving(true);
@@ -393,7 +395,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
             <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500">
               Status
             </label>
-            <div className={`grid gap-2 ${visibleStatuses.length === 1 ? "grid-cols-1" : "grid-cols-2 sm:grid-cols-4"}`}>
+            <div className={`grid gap-2 ${visibleStatuses.length === 1 ? "grid-cols-1" : visibleStatuses.length >= 5 ? "grid-cols-3 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"}`}>
               {visibleStatuses.map(({ value, label }) => (
                 <button
                   key={value}
