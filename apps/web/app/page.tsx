@@ -9,7 +9,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
-import { formatStatus } from "@/lib/formatStatus";
 import { PopularCarousel } from "./PopularCarousel";
 import { UpcomingCarousel } from "./UpcomingCarousel";
 import { WelcomeToast } from "@/components/WelcomeToast";
@@ -57,21 +56,26 @@ export type UpcomingGame = {
   hypes: number | null;
 };
 
+type RecentListItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+  profiles: {
+    username: string;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
+  list_entries: Array<{ position: number | null; games: { cover_url: string | null } | null }>;
+  list_likes: Array<{ id: string }>;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const AVATAR_COLORS = [
   "bg-indigo-600", "bg-violet-600", "bg-teal-600", "bg-rose-600",
   "bg-amber-600", "bg-emerald-600", "bg-sky-600", "bg-pink-600",
 ];
-
-const STATUS_BADGE: Record<string, string> = {
-  playing:  "bg-teal-500/20   text-teal-300   border-teal-500/40",
-  played:   "bg-violet-500/20 text-violet-300 border-violet-500/40",
-  wishlist: "bg-amber-500/20  text-amber-300  border-amber-500/40",
-  dropped:  "bg-red-900/30    text-red-400    border-red-800/50",
-  shelved:  "bg-zinc-700/30   text-zinc-400   border-zinc-700/50",
-};
-
 
 // Curated games for the logged-out hero background rotation.
 // Slugs are verified against IGDB. Artwork-first, screenshot fallback.
@@ -112,9 +116,9 @@ export default async function Home({
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const anonKey    = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-    // Phase 1: profile, follows, own library, IGDB popular games, and upcoming games (all parallel).
+    // Phase 1: profile, follows, recent public lists, IGDB popular games, and upcoming games (all parallel).
     // igdb-popular is tried first; Waypoint game_logs is used only as a fallback.
-    const [profileRes, followRes, ownRes, igdbPopularGames, igdbUpcomingGames] = await Promise.all([
+    const [profileRes, followRes, recentListsRes, igdbPopularGames, igdbUpcomingGames] = await Promise.all([
       supabase
         .from("profiles")
         .select("username, display_name")
@@ -126,13 +130,18 @@ export default async function Home({
         .select("followee_id")
         .eq("follower_id", user.id),
 
-      // Library shortcut: user's 4 most recently touched logs.
+      // 6 most-recent public lists with at least one game.
       supabase
-        .from("game_logs")
-        .select("id, status, games(id, slug, title, cover_url)")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(4),
+        .from("lists")
+        .select(`
+          id, title, description, created_at,
+          profiles!lists_user_id_fkey(username, display_name, avatar_url),
+          list_entries(position, games(cover_url)),
+          list_likes(id)
+        `)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false })
+        .limit(20),
 
       // IGDB global popularity — most followed base games with ≥500 ratings.
       fetch(`${supabaseUrl}/functions/v1/igdb-popular`, {
@@ -241,8 +250,9 @@ export default async function Home({
     const username    = profile?.username ?? "there";
     const displayName = profile?.display_name ?? username;
     const feed        = (rawFeed ?? []) as unknown as FeedItem[];
-    const ownLogs     = (ownRes.data ?? []) as unknown as OwnLog[];
     const isFollowingNobody = followedIds.length === 0;
+    const allLists    = (recentListsRes.data ?? []) as unknown as RecentListItem[];
+    const recentLists = allLists.filter((l) => l.list_entries.length > 0).slice(0, 6);
 
     const showWelcome = searchParams.welcome === "1";
 
@@ -372,59 +382,17 @@ export default async function Home({
           </section>
         )}
 
-        {/* ── Library shortcut ──────────────────────────────────────────────── */}
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-white">Your Library</h2>
-            <Link
-              href={`/user/${username}`}
-              className="text-sm text-indigo-400 transition-colors hover:text-indigo-300"
-            >
-              View all →
-            </Link>
-          </div>
-          {ownLogs.length === 0 ? (
-            <p className="text-sm text-zinc-500">
-              Nothing logged yet.{" "}
-              <Link href="/search" className="text-indigo-400 hover:text-indigo-300">
-                Find a game to start →
-              </Link>
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {ownLogs.map(({ id, status, games }) =>
-                games ? (
-                  <Link key={id} href={`/games/${games.slug}`} className="group">
-                    <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-zinc-800">
-                      {games.cover_url ? (
-                        <Image
-                          src={igdbCover(games.cover_url, "t_720p")!}
-                          alt={games.title}
-                          fill
-                          sizes="(max-width: 768px) 50vw, 25vw"
-                          quality={90}
-                          className="object-cover transition-transform duration-200 group-hover:scale-105"
-                        />
-                      ) : (
-                        <NoCover />
-                      )}
-                    </div>
-                    <div className="mt-1.5 space-y-1">
-                      <p className="line-clamp-1 text-xs font-medium text-zinc-300 transition-colors group-hover:text-white">
-                        {games.title}
-                      </p>
-                      <span
-                        className={`inline-block rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.shelved}`}
-                      >
-                        {formatStatus(status)}
-                      </span>
-                    </div>
-                  </Link>
-                ) : null
-              )}
+        {/* ── Recent Lists ──────────────────────────────────────────────────── */}
+        {recentLists.length > 0 && (
+          <section>
+            <h2 className="mb-4 text-base font-semibold text-white">Recent Lists</h2>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {recentLists.map((list) => (
+                <RecentListCard key={list.id} list={list} />
+              ))}
             </div>
-          )}
-        </section>
+          </section>
+        )}
 
       </main>
     );
@@ -440,7 +408,7 @@ export default async function Home({
   const heroSlug =
     HERO_GAME_SLUGS[Math.floor(Math.random() * HERO_GAME_SLUGS.length)];
 
-  const [popularRes, heroDetailRes, upcomingRes] = await Promise.all([
+  const [popularRes, heroDetailRes, upcomingRes, recentListsResLoggedOut] = await Promise.all([
     fetch(`${supabaseUrl}/functions/v1/igdb-popular`, {
       method: "POST",
       headers: {
@@ -471,6 +439,18 @@ export default async function Home({
       },
       cache: "no-store",
     }).catch(() => null),
+
+    supabase
+      .from("lists")
+      .select(`
+        id, title, description, created_at,
+        profiles!lists_user_id_fkey(username, display_name, avatar_url),
+        list_entries(position, games(cover_url)),
+        list_likes(id)
+      `)
+      .eq("is_public", true)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   let popularGames: GameStub[] = [];
@@ -484,6 +464,9 @@ export default async function Home({
     const data = await upcomingRes.json();
     upcomingGamesLoggedOut = (data.results as UpcomingGame[]) ?? [];
   }
+
+  const allListsLoggedOut = (recentListsResLoggedOut.data ?? []) as unknown as RecentListItem[];
+  const recentListsLoggedOut = allListsLoggedOut.filter((l) => l.list_entries.length > 0).slice(0, 6);
 
   // Hero background: artwork-first (marketing moment), screenshot fallback.
   // Opposite priority to the game detail page (screenshots-first there).
@@ -633,6 +616,20 @@ export default async function Home({
         </section>
       )}
 
+      {/* ── Recent Lists ────────────────────────────────────────────────────── */}
+      {recentListsLoggedOut.length > 0 && (
+        <section className="bg-zinc-950 px-4 pb-20">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="mb-6 text-base font-semibold text-white">Recent Lists</h2>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {recentListsLoggedOut.map((list) => (
+                <RecentListCard key={list.id} list={list} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── CTA ─────────────────────────────────────────────────────────────── */}
       <section className="border-t border-zinc-800 bg-zinc-950 px-4 py-20 text-center">
         <h2 className="text-2xl font-bold text-white">
@@ -752,6 +749,99 @@ function ActivityCard({ item }: { item: FeedItem }) {
         <span className="text-[10px] text-zinc-600">{date}</span>
       </div>
 
+    </div>
+  );
+}
+
+// Letterboxd-style list card with overlapping cover fan, info, and author footer.
+// Uses an invisible overlay <Link> for the card hit-area so the author link
+// (relative z-10) can sit on top without nesting <a> inside <a>.
+function RecentListCard({ list }: { list: RecentListItem }) {
+  const profile = list.profiles;
+  if (!profile) return null;
+
+  const covers = [...list.list_entries]
+    .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity))
+    .slice(0, 4)
+    .map((e) => e.games?.cover_url ?? null)
+    .filter((c): c is string => c !== null);
+
+  const gameCount  = list.list_entries.length;
+  const likeCount  = list.list_likes.length;
+  const displayName = profile.display_name ?? profile.username;
+
+  return (
+    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 transition-colors hover:bg-white/5">
+      {/* Full-card overlay link — sits below avatar/author link */}
+      <Link
+        href={`/user/${profile.username}/lists/${list.id}`}
+        className="absolute inset-0 z-0 rounded-xl"
+        aria-label={list.title}
+      />
+
+      {/* Cover fan */}
+      <div className="flex items-end overflow-hidden rounded-t-xl bg-zinc-800/60 px-3 pt-3 pb-2">
+        {covers.length > 0 ? (
+          covers.map((url, i) => (
+            <div
+              key={i}
+              className={`relative h-[100px] w-[70px] shrink-0 overflow-hidden rounded-md ${i > 0 ? "-ml-4" : ""}`}
+              style={{ zIndex: covers.length - i }}
+            >
+              <Image
+                src={igdbCover(url, "t_cover_big")!}
+                alt=""
+                fill
+                sizes="70px"
+                className="object-cover"
+              />
+            </div>
+          ))
+        ) : (
+          <div className="h-[100px] w-full rounded-md bg-zinc-800" />
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-1 flex-col gap-1 px-4 py-3">
+        <p className="line-clamp-1 font-semibold text-white">{list.title}</p>
+        <div className="flex items-center gap-2 text-xs text-zinc-500">
+          <span>{gameCount} {gameCount === 1 ? "game" : "games"}</span>
+          {likeCount > 0 && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="flex items-center gap-0.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+                {likeCount}
+              </span>
+            </>
+          )}
+        </div>
+        {list.description && (
+          <p className="line-clamp-2 text-xs italic leading-snug text-zinc-500">{list.description}</p>
+        )}
+      </div>
+
+      {/* Author footer — z-10 so it sits above the card overlay link */}
+      <div className="relative z-10 flex items-center gap-2 border-t border-zinc-800 px-4 py-2.5">
+        <Link
+          href={`/user/${profile.username}`}
+          className="flex items-center gap-2 text-xs text-zinc-400 transition-colors hover:text-white"
+        >
+          {profile.avatar_url ? (
+            <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full">
+              <Image src={profile.avatar_url} alt={displayName} fill sizes="20px" className="object-cover" />
+            </div>
+          ) : (
+            <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white ${avatarBg(profile.username)}`}>
+              {displayName.slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          {displayName}
+        </Link>
+      </div>
     </div>
   );
 }
