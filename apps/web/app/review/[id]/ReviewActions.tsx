@@ -19,6 +19,7 @@ interface Props {
   isOwner: boolean;          // viewer === review author
   initialBody: string | null;
   initialRating: number;
+  initialIsSpoiler: boolean;
   gameSlug: string;
   startEditing: boolean;     // true when ?edit=true is in the URL
   likeCount: number;
@@ -33,6 +34,7 @@ export function ReviewActions({
   isOwner,
   initialBody,
   initialRating,
+  initialIsSpoiler,
   gameSlug,
   startEditing,
   likeCount,
@@ -41,9 +43,10 @@ export function ReviewActions({
   const [mode, setMode] = useState<"read" | "edit" | "confirm-delete">(
     isOwner && startEditing ? "edit" : "read"
   );
-  const [body, setBody]     = useState(initialBody ?? "");
-  const [rating, setRating] = useState(initialRating);
-  const [saving, setSaving]   = useState(false);
+  const [body, setBody]         = useState(initialBody ?? "");
+  const [rating, setRating]     = useState(initialRating);
+  const [isSpoiler, setIsSpoiler] = useState(initialIsSpoiler);
+  const [saving, setSaving]     = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const router = useRouter();
@@ -62,6 +65,7 @@ export function ReviewActions({
       .update({
         body: body.trim() || null,
         rating,
+        is_spoiler: isSpoiler,
         updated_at: new Date().toISOString(),
       })
       // Ownership enforced at the query level — not just frontend
@@ -104,7 +108,9 @@ export function ReviewActions({
         </div>
 
         {/* Body */}
-        {body ? (
+        {isSpoiler ? (
+          <SpoilerBody body={body || null} />
+        ) : body ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-300 sm:text-base">
             {body}
           </p>
@@ -179,6 +185,19 @@ export function ReviewActions({
           />
         </div>
 
+        {/* Spoiler toggle */}
+        <div className="mb-5">
+          <label className="flex cursor-pointer items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={isSpoiler}
+              onChange={(e) => setIsSpoiler(e.target.checked)}
+              className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 accent-indigo-500"
+            />
+            <span className="text-sm text-zinc-400">This review contains spoilers</span>
+          </label>
+        </div>
+
         {/* Save / Cancel */}
         <div className="flex items-center gap-3 border-t border-zinc-800 pt-5">
           <button
@@ -189,7 +208,7 @@ export function ReviewActions({
             {saving ? "Saving…" : "Save"}
           </button>
           <button
-            onClick={() => { setBody(initialBody ?? ""); setRating(initialRating); setMode("read"); }}
+            onClick={() => { setBody(initialBody ?? ""); setRating(initialRating); setIsSpoiler(initialIsSpoiler); setMode("read"); }}
             className="rounded-lg px-4 py-2 text-sm text-zinc-400 transition-colors hover:text-white"
           >
             Cancel
@@ -235,6 +254,38 @@ export function ReviewActions({
       </div>
 
       {toast && <Toast msg={toast} />}
+    </>
+  );
+}
+
+// ─── SpoilerBody ──────────────────────────────────────────────────────────────
+
+function SpoilerBody({ body }: { body: string | null }) {
+  const [revealed, setRevealed] = useState(false);
+  if (!body) return <p className="text-sm italic text-zinc-600">No written review.</p>;
+  return (
+    <>
+      <div className="relative">
+        <p className={`whitespace-pre-wrap text-sm leading-relaxed text-zinc-300 transition-[filter] sm:text-base ${revealed ? "" : "blur-sm select-none"}`}>
+          {body}
+        </p>
+        {!revealed && (
+          <button
+            onClick={() => setRevealed(true)}
+            className="absolute inset-0 flex items-center justify-center rounded-lg text-sm font-medium text-zinc-300 transition-colors hover:text-white"
+          >
+            ⚠️ Spoiler — click to reveal
+          </button>
+        )}
+      </div>
+      {revealed && (
+        <button
+          onClick={() => setRevealed(false)}
+          className="mt-2 text-xs text-zinc-600 transition-colors hover:text-zinc-400"
+        >
+          hide spoiler
+        </button>
+      )}
     </>
   );
 }

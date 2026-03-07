@@ -159,6 +159,7 @@ function WriteReviewForm({
 }: WriteReviewFormProps) {
   const [rating, setRating] = useState(0);
   const [body, setBody] = useState("");
+  const [isSpoiler, setIsSpoiler] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -181,6 +182,7 @@ function WriteReviewForm({
       game_id: gameId,
       rating,
       body: body.trim() || null,
+      is_spoiler: isSpoiler,
       is_draft: false,
       published_at: new Date().toISOString(),
     });
@@ -226,6 +228,19 @@ function WriteReviewForm({
           placeholder="Share your thoughts…"
           className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
         />
+      </div>
+
+      {/* Spoiler toggle */}
+      <div className="mb-4">
+        <label className="flex cursor-pointer items-center gap-2.5">
+          <input
+            type="checkbox"
+            checked={isSpoiler}
+            onChange={(e) => setIsSpoiler(e.target.checked)}
+            className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 accent-indigo-500"
+          />
+          <span className="text-sm text-zinc-400">This review contains spoilers</span>
+        </label>
       </div>
 
       {error && (
@@ -350,22 +365,27 @@ function ReviewCard({ review, isAuthor }: { review: ReviewWithAuthor; isAuthor: 
         </div>
       </div>
 
-      {/* Review body → link to review page */}
-      <Link href={`/review/${review.id}`} className="block px-5 pb-3">
-        {/* Body */}
-        {bodyText ? (
-          <>
-            <p className="text-sm leading-relaxed text-zinc-300">{bodyText}</p>
-            {isTruncated && (
-              <span className="mt-2 inline-block text-xs font-medium text-indigo-400">
-                Read more
-              </span>
-            )}
-          </>
+      {/* Review body */}
+      <div className="px-5 pb-3">
+        {review.is_spoiler ? (
+          <SpoilerBlock body={bodyText} reviewId={review.id} isTruncated={isTruncated} />
         ) : (
-          <p className="text-xs italic text-zinc-600">No written review.</p>
+          <Link href={`/review/${review.id}`} className="block">
+            {bodyText ? (
+              <>
+                <p className="text-sm leading-relaxed text-zinc-300">{bodyText}</p>
+                {isTruncated && (
+                  <span className="mt-2 inline-block text-xs font-medium text-indigo-400">
+                    Read more
+                  </span>
+                )}
+              </>
+            ) : (
+              <p className="text-xs italic text-zinc-600">No written review.</p>
+            )}
+          </Link>
         )}
-      </Link>
+      </div>
 
       {/* Footer — edit link left, social counts right */}
       <div className="flex items-center justify-between gap-4 px-5 pb-4 text-sm text-zinc-400">
@@ -392,6 +412,53 @@ function ReviewCard({ review, isAuthor }: { review: ReviewWithAuthor; isAuthor: 
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── SpoilerBlock ─────────────────────────────────────────────────────────────
+
+function SpoilerBlock({
+  body,
+  reviewId,
+  isTruncated,
+}: {
+  body: string | null | undefined;
+  reviewId: string;
+  isTruncated: boolean;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  if (!body) return <p className="text-xs italic text-zinc-600">No written review.</p>;
+  return (
+    <>
+      <div className="relative">
+        <p className={`text-sm leading-relaxed text-zinc-300 transition-[filter] ${revealed ? "" : "blur-sm select-none"}`}>
+          {body}
+        </p>
+        {!revealed && (
+          <button
+            onClick={() => setRevealed(true)}
+            className="absolute inset-0 flex items-center justify-center rounded-lg text-xs font-medium text-zinc-300 transition-colors hover:text-white"
+          >
+            ⚠️ Spoiler — click to reveal
+          </button>
+        )}
+      </div>
+      {revealed && (
+        <div className="mt-1.5 flex items-center gap-3">
+          <button
+            onClick={() => setRevealed(false)}
+            className="text-xs text-zinc-600 transition-colors hover:text-zinc-400"
+          >
+            hide spoiler
+          </button>
+          {isTruncated && (
+            <Link href={`/review/${reviewId}`} className="text-xs font-medium text-indigo-400">
+              Read more
+            </Link>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 

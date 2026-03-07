@@ -18,6 +18,7 @@ import { igdbCover } from "@/lib/igdb";
 import { FollowButton } from "./FollowButton";
 import { LibraryCarousel } from "./LibraryCarousel";
 import { ListCard, ListRow } from "@/components/ListCard";
+import { SpoilerReveal } from "./SpoilerReveal";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
 // Supabase returns nested objects for FK joins. We define our own shapes and
@@ -42,6 +43,7 @@ type ReviewWithGame = {
   id: string;
   rating: number;
   body: string | null;
+  is_spoiler: boolean;
   published_at: string | null;
   games: GameStub | null;
 };
@@ -139,7 +141,7 @@ export default async function UserProfilePage({
 
       supabase
         .from("reviews")
-        .select("id, rating, body, published_at, games(id, slug, title, cover_url)")
+        .select("id, rating, body, is_spoiler, published_at, games(id, slug, title, cover_url)")
         .eq("user_id", profile.id)
         .eq("is_draft", false)
         .not("published_at", "is", null)
@@ -549,35 +551,37 @@ function StatLinkPill({ value, label, href }: { value: number; label: string; hr
 
 // Review card: small cover left, title + rating + body + date right
 function ReviewCard({ review }: { review: ReviewWithGame }) {
-  const { rating, body, published_at, games } = review;
+  const { id, rating, body, is_spoiler, published_at, games } = review;
   if (!games) return null;
 
   return (
-    <Link
-      href={`/games/${games.slug}`}
-      className="group flex gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700"
-    >
-      {/* Small cover */}
-      <div className="relative h-[72px] w-12 shrink-0 overflow-hidden rounded-md bg-zinc-800">
-        {games.cover_url ? (
-          <Image
-            src={games.cover_url.replace(/\/t_[^/]+\//, "/t_720p/")}
-            alt={games.title}
-            fill
-            sizes="48px"
-            quality={90}
-            className="object-cover"
-          />
-        ) : (
-          <NoCover />
-        )}
-      </div>
+    <div className="flex gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+      {/* Small cover — links to game page */}
+      <Link href={`/games/${games.slug}`} className="group shrink-0">
+        <div className="relative h-[72px] w-12 overflow-hidden rounded-md bg-zinc-800">
+          {games.cover_url ? (
+            <Image
+              src={games.cover_url.replace(/\/t_[^/]+\//, "/t_720p/")}
+              alt={games.title}
+              fill
+              sizes="48px"
+              quality={90}
+              className="object-cover transition-transform duration-200 group-hover:scale-105"
+            />
+          ) : (
+            <NoCover />
+          )}
+        </div>
+      </Link>
 
       {/* Text content */}
       <div className="min-w-0 flex-1">
-        <p className="font-medium text-white transition-colors group-hover:text-indigo-300">
+        <Link
+          href={`/review/${id}`}
+          className="font-medium text-white transition-colors hover:text-indigo-300"
+        >
           {games.title}
-        </p>
+        </Link>
 
         {/* Star rating */}
         <div className="mt-1 flex items-center gap-1">
@@ -596,18 +600,20 @@ function ReviewCard({ review }: { review: ReviewWithGame }) {
           <span className="text-xs text-zinc-500">/5</span>
         </div>
 
-        {/* Body — clamped to 3 lines */}
-        {body && (
+        {/* Body — spoiler blurred or plain text clamped to 3 lines */}
+        {body && is_spoiler ? (
+          <SpoilerReveal body={body} />
+        ) : body ? (
           <p className="mt-1.5 text-sm leading-relaxed text-zinc-400 line-clamp-3">
             {body}
           </p>
-        )}
+        ) : null}
 
         {published_at && (
           <p className="mt-2 text-xs text-zinc-600">{formatDate(published_at)}</p>
         )}
       </div>
-    </Link>
+    </div>
   );
 }
 

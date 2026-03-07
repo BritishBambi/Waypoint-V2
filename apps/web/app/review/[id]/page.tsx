@@ -177,6 +177,7 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
             isOwner={isOwner}
             initialBody={review.body}
             initialRating={review.rating}
+            initialIsSpoiler={review.is_spoiler}
             gameSlug={game?.slug ?? ""}
             startEditing={startEditing}
             likeCount={likeCount ?? 0}
