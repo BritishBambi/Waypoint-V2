@@ -163,6 +163,7 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
   );
   const [rating, setRating] = useState(0);
   const [note, setNote] = useState("");
+  const [isSpoiler, setIsSpoiler] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleSave() {
@@ -178,6 +179,7 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
     // ON DELETE CASCADE on reviews and diary_entries cleans up child rows.
     // If there's no existing log (new modal, nothing ever selected), just close.
     if (status === null) {
+      setIsSpoiler(false);
       if (existingLog) {
         const { error: deleteErr } = await (supabase as any)
           .from("game_logs")
@@ -301,6 +303,7 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
             game_id: game.id,
             rating: rating > 0 ? rating : null,
             body: note.trim() || null,
+            is_spoiler: isSpoiler,
             is_draft: false,
             published_at: new Date().toISOString(),
           },
@@ -418,6 +421,17 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
               placeholder="What did you think?"
               className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
+            {note.trim() && (
+              <label className="mt-2.5 flex cursor-pointer select-none items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={isSpoiler}
+                  onChange={(e) => setIsSpoiler(e.target.checked)}
+                  className="rounded border-zinc-600 bg-zinc-800 text-violet-500 focus:ring-violet-500"
+                />
+                <span className="text-sm text-zinc-400">This review contains spoilers</span>
+              </label>
+            )}
           </div>
         </div>
 
