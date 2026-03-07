@@ -422,14 +422,14 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
               className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
             {note.trim() && (
-              <label className="mt-2.5 flex cursor-pointer select-none items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={isSpoiler}
-                  onChange={(e) => setIsSpoiler(e.target.checked)}
-                  className="rounded border-zinc-600 bg-zinc-800 text-violet-500 focus:ring-violet-500"
-                />
-                <span className="text-sm text-zinc-400">This review contains spoilers</span>
+              <label className="mt-2.5 flex cursor-pointer select-none items-center gap-2 group">
+                <div
+                  onClick={() => setIsSpoiler(!isSpoiler)}
+                  className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${isSpoiler ? "bg-violet-600" : "bg-zinc-700"}`}
+                >
+                  <div className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${isSpoiler ? "translate-x-4" : "translate-x-0"}`} />
+                </div>
+                <span className="text-sm text-zinc-400 transition-colors group-hover:text-zinc-300">This review contains spoilers</span>
               </label>
             )}
           </div>

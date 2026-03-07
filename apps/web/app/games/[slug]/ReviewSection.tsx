@@ -232,14 +232,14 @@ function WriteReviewForm({
 
       {/* Spoiler toggle */}
       <div className="mb-4">
-        <label className="flex cursor-pointer items-center gap-2.5">
-          <input
-            type="checkbox"
-            checked={isSpoiler}
-            onChange={(e) => setIsSpoiler(e.target.checked)}
-            className="h-4 w-4 rounded border-zinc-600 bg-zinc-800 accent-indigo-500"
-          />
-          <span className="text-sm text-zinc-400">This review contains spoilers</span>
+        <label className="flex cursor-pointer select-none items-center gap-2 group">
+          <div
+            onClick={() => setIsSpoiler(!isSpoiler)}
+            className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${isSpoiler ? "bg-violet-600" : "bg-zinc-700"}`}
+          >
+            <div className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${isSpoiler ? "translate-x-4" : "translate-x-0"}`} />
+          </div>
+          <span className="text-sm text-zinc-400 transition-colors group-hover:text-zinc-300">This review contains spoilers</span>
         </label>
       </div>
 
