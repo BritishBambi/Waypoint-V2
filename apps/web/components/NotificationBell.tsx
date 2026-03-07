@@ -18,6 +18,7 @@ type NotificationRow = {
   actor_id: string | null;
   review_id: string | null;
   comment_id: string | null;
+  list_id: string | null;
   emoji: string | null;         // set on review_reaction notifications
   actor: {
     id: string;
@@ -28,6 +29,10 @@ type NotificationRow = {
   review: {
     id: string;
     games: { title: string; slug: string } | null;
+  } | null;
+  list: {
+    id: string;
+    title: string;
   } | null;
   comment_body: string | null; // joined separately
 };
@@ -74,6 +79,7 @@ export function NotificationBell({ userId }: { userId: string }) {
   const supabase = createClient();
   const [items, setItems] = useState<NotificationRow[]>([]);
   const [open, setOpen] = useState(false);
+  const [selfUsername, setSelfUsername] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // ── Fetch ────────────────────────────────────────────────────────────────
@@ -85,8 +91,9 @@ export function NotificationBell({ userId }: { userId: string }) {
     const { data } = await supabase
       .from("notifications")
       .select(`
-        id, type, read, created_at, actor_id, review_id, comment_id, emoji,
-        review:reviews(id, games(title, slug))
+        id, type, read, created_at, actor_id, review_id, comment_id, list_id, emoji,
+        review:reviews(id, games(title, slug)),
+        list:lists(id, title)
       `)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -126,6 +133,7 @@ export function NotificationBell({ userId }: { userId: string }) {
       ...n,
       actor: n.actor_id ? (actorMap[n.actor_id] ?? null) : null,
       comment_body: n.comment_id ? (bodyMap[n.comment_id] ?? null) : null,
+      list: n.list ?? null,
     })) as NotificationRow[];
 
     setItems(enriched);
@@ -134,6 +142,16 @@ export function NotificationBell({ userId }: { userId: string }) {
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  // Fetch own username once (needed to build list_like URLs).
+  useEffect(() => {
+    supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .single()
+      .then(({ data }) => { if (data) setSelfUsername((data as any).username); });
+  }, [userId, supabase]);
 
   // ── Realtime ─────────────────────────────────────────────────────────────
 
@@ -149,6 +167,18 @@ export function NotificationBell({ userId }: { userId: string }) {
           filter: `user_id=eq.${userId}`,
         },
         () => { fetchNotifications(); }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          setItems((prev) => prev.filter((n) => n.id !== (payload.old as any).id));
+        }
       )
       .subscribe();
 
@@ -188,21 +218,22 @@ export function NotificationBell({ userId }: { userId: string }) {
   }
 
   async function dismiss(ids: string[]) {
-    // Optimistic removal.
-    setItems((prev) => prev.filter((n) => !ids.includes(n.id)));
+    // Delete first so the Realtime DELETE event (which removes from local state)
+    // fires AFTER the row is actually gone — preventing the cleared-state race.
     await (supabase as any)
       .from("notifications")
       .delete()
       .in("id", ids)
       .eq("user_id", userId);
+    setItems((prev) => prev.filter((n) => !ids.includes(n.id)));
   }
 
   async function clearAll() {
-    setItems([]);
     await (supabase as any)
       .from("notifications")
       .delete()
       .eq("user_id", userId);
+    setItems([]);
   }
 
   // ── Derived state ─────────────────────────────────────────────────────────
@@ -338,6 +369,7 @@ export function NotificationBell({ userId }: { userId: string }) {
                   <SingleRow
                     key={item.id}
                     item={item}
+                    selfUsername={selfUsername}
                     onRead={() => markRead([item.id])}
                     onClose={() => setOpen(false)}
                     onDismiss={() => dismiss([item.id])}
@@ -435,11 +467,13 @@ function Avatar({
 
 function SingleRow({
   item,
+  selfUsername,
   onRead,
   onClose,
   onDismiss,
 }: {
   item: SingleNotification;
+  selfUsername: string | null;
   onRead: () => void;
   onClose: () => void;
   onDismiss: () => void;
@@ -526,7 +560,37 @@ function SingleRow({
     );
   }
 
-  // Fallback (shouldn't reach here for likes — those are bunched)
+  if (item.type === "list_like") {
+    const listUrl =
+      selfUsername && item.list_id
+        ? `/user/${selfUsername}/lists/${item.list_id}`
+        : "/";
+    const listTitle = item.list?.title ?? null;
+
+    return (
+      <RowWrapper
+        unread={!item.read}
+        href={listUrl}
+        onRead={onRead}
+        onClose={onClose}
+        onDismiss={onDismiss}
+      >
+        <Avatar url={actor?.avatar_url ?? null} username={actor?.username ?? "?"} profileUsername={actor?.username} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug text-zinc-300">
+            <span className="font-medium text-white">{name}</span>{" "}
+            liked your list
+            {listTitle ? (
+              <> <span className="font-medium text-white">&ldquo;{listTitle}&rdquo;</span></>
+            ) : ""}.
+          </p>
+          <p className="mt-0.5 text-xs text-zinc-600">{timeAgo(item.created_at)}</p>
+        </div>
+      </RowWrapper>
+    );
+  }
+
+  // Fallback (shouldn't reach here for reaction likes — those are bunched)
   return null;
 }
 
