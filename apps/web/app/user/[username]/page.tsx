@@ -584,63 +584,65 @@ function ReviewCard({ review }: { review: ReviewWithGame }) {
   if (!games) return null;
 
   return (
-    <div className="relative flex gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-white/20 hover:bg-white/5">
-      {/* Stretched link — makes the whole card navigate to the review page */}
-      <Link href={`/review/${id}`} className="absolute inset-0 rounded-xl" aria-label={`Read review for ${games.title}`} />
+    <Link
+      href={`/review/${id}`}
+      className="block cursor-pointer rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-white/20 hover:bg-white/5"
+    >
+      <div className="flex gap-4">
+        {/* Cover — visual only; whole card is the link */}
+        <div className="shrink-0">
+          <div className="relative h-[72px] w-12 overflow-hidden rounded-md bg-zinc-800">
+            {games.cover_url ? (
+              <Image
+                src={games.cover_url.replace(/\/t_[^/]+\//, "/t_720p/")}
+                alt={games.title}
+                fill
+                sizes="48px"
+                quality={90}
+                className="object-cover"
+              />
+            ) : (
+              <NoCover />
+            )}
+          </div>
+        </div>
 
-      {/* Small cover — links to game page (z-10 so it sits above the stretched link) */}
-      <Link href={`/games/${games.slug}`} className="group relative z-10 shrink-0">
-        <div className="relative h-[72px] w-12 overflow-hidden rounded-md bg-zinc-800">
-          {games.cover_url ? (
-            <Image
-              src={games.cover_url.replace(/\/t_[^/]+\//, "/t_720p/")}
-              alt={games.title}
-              fill
-              sizes="48px"
-              quality={90}
-              className="object-cover transition-transform duration-200 group-hover:scale-105"
-            />
-          ) : (
-            <NoCover />
+        {/* Text content */}
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-white">{games.title}</p>
+
+          {/* Star rating */}
+          <div className="mt-1 flex items-center gap-1">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="text-yellow-400"
+              aria-hidden="true"
+            >
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            <span className="text-sm font-semibold text-white">{rating}</span>
+            <span className="text-xs text-zinc-500">/5</span>
+          </div>
+
+          {/* Body — static spoiler notice or plain text (interactive reveal is on the review page) */}
+          {body && is_spoiler ? (
+            <p className="mt-1.5 text-sm text-zinc-500 italic">⚠ Contains spoilers — click to read</p>
+          ) : body ? (
+            <p className="mt-1.5 text-sm leading-relaxed text-zinc-400 line-clamp-3">
+              {body}
+            </p>
+          ) : null}
+
+          {published_at && (
+            <p className="mt-2 text-xs text-zinc-600">{formatDate(published_at)}</p>
           )}
         </div>
-      </Link>
-
-      {/* Text content — z-10 so SpoilerReveal button is clickable */}
-      <div className="relative z-10 min-w-0 flex-1">
-        <p className="font-medium text-white">{games.title}</p>
-
-        {/* Star rating */}
-        <div className="mt-1 flex items-center gap-1">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="text-yellow-400"
-            aria-hidden="true"
-          >
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-          <span className="text-sm font-semibold text-white">{rating}</span>
-          <span className="text-xs text-zinc-500">/5</span>
-        </div>
-
-        {/* Body — spoiler blurred or plain text clamped to 3 lines */}
-        {body && is_spoiler ? (
-          <SpoilerReveal body={body} />
-        ) : body ? (
-          <p className="mt-1.5 text-sm leading-relaxed text-zinc-400 line-clamp-3">
-            {body}
-          </p>
-        ) : null}
-
-        {published_at && (
-          <p className="mt-2 text-xs text-zinc-600">{formatDate(published_at)}</p>
-        )}
       </div>
-    </div>
+    </Link>
   );
 }
 
