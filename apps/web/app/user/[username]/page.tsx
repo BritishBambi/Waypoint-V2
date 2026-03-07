@@ -377,7 +377,7 @@ export default async function UserProfilePage({
       {/* ── Showcase Review ──────────────────────────────────────────────────── */}
       {featuredReview && (
         <section className="mt-10">
-          <h2 className="mb-4 text-base font-semibold text-white">Showcase Review</h2>
+          <h2 className="mb-4 text-base font-semibold text-white">Review Showcase</h2>
           <ShowcaseCard review={featuredReview} />
         </section>
       )}
