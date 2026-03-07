@@ -133,7 +133,7 @@ export default async function UserProfilePage({
     await Promise.all([
       supabase
         .from("game_logs")
-        .select("id, status, updated_at, games(id, slug, title, cover_url), reviews(id, rating)")
+        .select("id, status, updated_at, games(id, slug, title, cover_url)")
         .eq("user_id", profile.id)
         .order("updated_at", { ascending: false }),
 
@@ -195,8 +195,27 @@ export default async function UserProfilePage({
   // we'll compute the final lists count after checking ownership
   let listsCount = publicListsCountRes.count ?? 0;
 
-  const logs      = (rawLogs      ?? []) as unknown as LogWithGame[];
   const reviews   = (rawReviews   ?? []) as unknown as ReviewWithGame[];
+
+  // Build a lookup from game_id → { id, rating } using the already-fetched
+  // published reviews. This avoids relying on the embedded PostgREST join
+  // (which is subject to RLS using the viewer's session, not the owner's)
+  // and reuses data we already have in memory.
+  const reviewByGameId = new Map<number, { id: string; rating: number }>();
+  for (const r of reviews) {
+    const gameId = (r.games as any)?.id as number | undefined;
+    if (gameId) reviewByGameId.set(gameId, { id: r.id, rating: r.rating });
+  }
+
+  // Merge review data into each log by matching game_id.
+  const logs: LogWithGame[] = ((rawLogs ?? []) as any[]).map((log: any) => {
+    const gameId = (log.games as any)?.id as number | undefined;
+    const review = gameId ? reviewByGameId.get(gameId) : undefined;
+    return {
+      ...log,
+      reviews: review ? [review] : [],
+    };
+  });
   const favRows   = (rawFavourites ?? []) as unknown as FavouriteSlot[];
   const recentLists = (recentListsRes.data ?? []) as unknown as Array<{
     id: string;

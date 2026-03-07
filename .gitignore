@@ -1,3 +1,6 @@
+# Local context files
+CONTEXT.md
+
 # Dependencies
 node_modules
 .pnp
