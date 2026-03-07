@@ -65,6 +65,10 @@ export function GameLogSection({ game, userId, existingLog }: Props) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
 
+  const isUnreleased =
+    game.release_date != null &&
+    new Date(game.release_date).getTime() > Date.now();
+
   // Create the auth-aware browser client once. createBrowserClient (from
   // @supabase/ssr) returns a singleton internally, so this is safe to call
   // at component level and pass as a stable reference.
@@ -108,11 +112,11 @@ export function GameLogSection({ game, userId, existingLog }: Props) {
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M20 6L9 17l-5-5" />
           </svg>
-          {formatStatus(log.status)}
+          {isUnreleased && log.status === "wishlist" ? "Wishlisted" : formatStatus(log.status)}
           <span className="text-current opacity-60">· Edit</span>
         </button>
       ) : (
-        // ── Unlogged state: primary "Log this Game" button ────────────────────
+        // ── Unlogged state: primary CTA button ────────────────────────────────
         <button
           onClick={() => setIsOpen(true)}
           className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 active:bg-indigo-700"
@@ -131,7 +135,7 @@ export function GameLogSection({ game, userId, existingLog }: Props) {
           >
             <path d="M12 5v14M5 12h14" />
           </svg>
-          Log this Game
+          {isUnreleased ? "Add to Wishlist" : "Log this Game"}
         </button>
       )}
 
@@ -140,6 +144,7 @@ export function GameLogSection({ game, userId, existingLog }: Props) {
           game={game}
           userId={userId}
           existingLog={log ?? null}
+          isUnreleased={isUnreleased}
           onClose={() => setIsOpen(false)}
           onSaved={handleSaved}
         />
@@ -154,13 +159,18 @@ interface ModalProps {
   game: Game;
   userId: string;
   existingLog: LogSummary | null;
+  isUnreleased: boolean;
   onClose: () => void;
   onSaved: (log: LogSummary | null) => void;
 }
 
-function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
+function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }: ModalProps) {
+  const visibleStatuses = isUnreleased
+    ? STATUSES.filter((s) => s.value === "wishlist")
+    : STATUSES;
+
   const [status, setStatus] = useState<Status | null>(
-    (existingLog?.status as Status) ?? null
+    (existingLog?.status as Status) ?? (isUnreleased ? "wishlist" : null)
   );
   const [rating, setRating] = useState(0);
   const [note, setNote] = useState("");
@@ -379,8 +389,8 @@ function LogModal({ game, userId, existingLog, onClose, onSaved }: ModalProps) {
             <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500">
               Status
             </label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {STATUSES.map(({ value, label }) => (
+            <div className={`grid gap-2 ${visibleStatuses.length === 1 ? "grid-cols-1" : "grid-cols-2 sm:grid-cols-4"}`}>
+              {visibleStatuses.map(({ value, label }) => (
                 <button
                   key={value}
                   type="button"
