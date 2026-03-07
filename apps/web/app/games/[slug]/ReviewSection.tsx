@@ -52,18 +52,19 @@ export function ReviewSection({
 
     if (!data) return;
 
-    const base = data as Omit<ReviewWithAuthor, "like_count" | "comment_count">[];
+    const base = data as Omit<ReviewWithAuthor, "reaction_counts" | "comment_count">[];
     const ids = base.map((r) => r.id);
-    let likeCounts: Record<string, number> = {};
+    const reactionCountsByReview: Record<string, Record<string, number>> = {};
     let commentCounts: Record<string, number> = {};
     if (ids.length > 0) {
-      const [{ data: likes }, { data: comments }] = await Promise.all([
-        (supabase as any).from("review_likes").select("review_id").in("review_id", ids),
+      const [{ data: reactions }, { data: comments }] = await Promise.all([
+        (supabase as any).from("review_reactions").select("review_id, emoji").in("review_id", ids),
         (supabase as any).from("review_comments").select("review_id").in("review_id", ids),
       ]);
-      if (likes) {
-        for (const row of likes as { review_id: string }[]) {
-          likeCounts[row.review_id] = (likeCounts[row.review_id] ?? 0) + 1;
+      if (reactions) {
+        for (const row of reactions as { review_id: string; emoji: string }[]) {
+          const byEmoji = (reactionCountsByReview[row.review_id] ??= {});
+          byEmoji[row.emoji] = (byEmoji[row.emoji] ?? 0) + 1;
         }
       }
       if (comments) {
@@ -74,7 +75,7 @@ export function ReviewSection({
     }
     setReviews(base.map((r) => ({
       ...r,
-      like_count: likeCounts[r.id] ?? 0,
+      reaction_counts: reactionCountsByReview[r.id] ?? {},
       comment_count: commentCounts[r.id] ?? 0,
     })));
   }
@@ -400,11 +401,15 @@ function ReviewCard({ review, isAuthor }: { review: ReviewWithAuthor; isAuthor: 
         ) : (
           <span />
         )}
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5">
-            <HeartIcon className="h-3.5 w-3.5" />
-            {review.like_count}
-          </span>
+        <div className="flex items-center gap-3">
+          {/* Emoji reaction summary — only emojis with ≥ 1 reaction */}
+          {Object.entries(review.reaction_counts)
+            .filter(([, count]) => count > 0)
+            .map(([emoji, count]) => (
+              <span key={emoji} className="flex items-center gap-0.5 text-xs text-zinc-400">
+                {emoji}{count}
+              </span>
+            ))}
           <span className="flex items-center gap-1.5">
             <ChatBubbleIcon className="h-3.5 w-3.5" />
             {review.comment_count}

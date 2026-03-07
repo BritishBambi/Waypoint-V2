@@ -25,14 +25,14 @@ export type GameDetail = Omit<Tables<"games">, "igdb_synced_at"> & {
 };
 
 // Review row joined with the author's public profile columns + social counts.
-// like_count and comment_count are computed server-side from the review_likes
-// and review_comments tables (migration 0007).
+// reaction_counts is a map of emoji → total count, computed from review_reactions.
+// comment_count is computed from review_comments.
 export type ReviewWithAuthor = Tables<"reviews"> & {
   profiles: Pick<
     Tables<"profiles">,
     "username" | "display_name" | "avatar_url"
   > | null;
-  like_count: number;
+  reaction_counts: Record<string, number>;
   comment_count: number;
 };
 
@@ -119,20 +119,17 @@ export default async function GameDetailPage({ params }: Props) {
       .limit(20),
   ]);
 
-  const baseReviews = (rawReviews ?? []) as Omit<ReviewWithAuthor, "like_count">[];
+  const baseReviews = (rawReviews ?? []) as Omit<ReviewWithAuthor, "reaction_counts" | "comment_count">[];
 
-  // Run social counts (likes/comments) and the user's game_log fetch in parallel.
-  // review_likes and review_comments are new (migration 0007) so we use
-  // (supabase as any) until types are regenerated with `pnpm generate:types`.
+  // Run social counts and the user's game_log fetch in parallel.
   const reviewIds = baseReviews.map((r) => r.id);
 
   const [socialResult, logResult] = await Promise.all([
-    // Likes + comments for all displayed reviews (parallel inner Promise.all).
     reviewIds.length > 0
       ? Promise.all([
           (supabase as any)
-            .from("review_likes")
-            .select("review_id")
+            .from("review_reactions")
+            .select("review_id, emoji")
             .in("review_id", reviewIds),
           (supabase as any)
             .from("review_comments")
@@ -140,7 +137,6 @@ export default async function GameDetailPage({ params }: Props) {
             .in("review_id", reviewIds),
         ])
       : Promise.resolve(null as null),
-    // User's game log (only if authenticated).
     user
       ? supabase
           .from("game_logs")
@@ -151,13 +147,15 @@ export default async function GameDetailPage({ params }: Props) {
       : Promise.resolve({ data: null }),
   ]);
 
-  let likeCounts: Record<string, number> = {};
+  // reactionCountsByReview: review_id → { emoji → count }
+  const reactionCountsByReview: Record<string, Record<string, number>> = {};
   let commentCounts: Record<string, number> = {};
   if (socialResult) {
-    const [{ data: likes }, { data: comments }] = socialResult;
-    if (likes) {
-      for (const row of likes as { review_id: string }[]) {
-        likeCounts[row.review_id] = (likeCounts[row.review_id] ?? 0) + 1;
+    const [{ data: reactions }, { data: comments }] = socialResult;
+    if (reactions) {
+      for (const row of reactions as { review_id: string; emoji: string }[]) {
+        const byEmoji = (reactionCountsByReview[row.review_id] ??= {});
+        byEmoji[row.emoji] = (byEmoji[row.emoji] ?? 0) + 1;
       }
     }
     if (comments) {
@@ -169,7 +167,7 @@ export default async function GameDetailPage({ params }: Props) {
 
   const reviews: ReviewWithAuthor[] = baseReviews.map((r) => ({
     ...r,
-    like_count: likeCounts[r.id] ?? 0,
+    reaction_counts: reactionCountsByReview[r.id] ?? {},
     comment_count: commentCounts[r.id] ?? 0,
   }));
 

@@ -12,12 +12,13 @@ import { createClient } from "@/lib/supabase/client";
 
 type NotificationRow = {
   id: string;
-  type: "follow" | "review_like" | "review_comment" | "list_like" | "welcome";
+  type: "follow" | "review_like" | "review_reaction" | "review_comment" | "list_like" | "welcome";
   read: boolean;
   created_at: string;
   actor_id: string | null;
   review_id: string | null;
   comment_id: string | null;
+  emoji: string | null;         // set on review_reaction notifications
   actor: {
     id: string;
     username: string;
@@ -31,12 +32,13 @@ type NotificationRow = {
   comment_body: string | null; // joined separately
 };
 
-// Likes on the same review are bunched together in the UI.
-type BunchedLike = {
-  kind: "like_bunch";
+// Reactions on the same (review, emoji) are bunched together in the UI.
+type BunchedReaction = {
+  kind: "reaction_bunch";
   reviewId: string;
   gameTitle: string;
   gameSlug: string;
+  emoji: string;   // the shared emoji for this bunch
   actors: Array<{ username: string; display_name: string | null; avatar_url: string | null }>;
   unread: boolean;
   latestId: string; // id of newest notification in bunch (for mark-read)
@@ -45,7 +47,7 @@ type BunchedLike = {
 
 type SingleNotification = NotificationRow & { kind: "single" };
 
-type DisplayItem = BunchedLike | SingleNotification;
+type DisplayItem = BunchedReaction | SingleNotification;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -83,7 +85,7 @@ export function NotificationBell({ userId }: { userId: string }) {
     const { data } = await supabase
       .from("notifications")
       .select(`
-        id, type, read, created_at, actor_id, review_id, comment_id,
+        id, type, read, created_at, actor_id, review_id, comment_id, emoji,
         review:reviews(id, games(title, slug))
       `)
       .eq("user_id", userId)
@@ -207,16 +209,19 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   const unreadCount = items.filter((n) => !n.read).length;
 
-  // Bunch consecutive like notifications by review_id.
+  // Bunch reaction notifications by (review_id, emoji).
+  // Legacy review_like notifications (pre-migration) are also bunched by review_id.
   const displayItems: DisplayItem[] = (() => {
     const result: DisplayItem[] = [];
-    const likeBunches: Record<string, BunchedLike> = {};
+    const reactionBunches: Record<string, BunchedReaction> = {};
 
     for (const n of items) {
-      if (n.type === "review_like" && n.review_id) {
-        const key = n.review_id;
-        if (likeBunches[key]) {
-          const bunch = likeBunches[key];
+      const isReaction = n.type === "review_reaction" || n.type === "review_like";
+      if (isReaction && n.review_id) {
+        const emoji = n.emoji ?? "❤️"; // legacy likes default to ❤️
+        const key = `${n.review_id}:${emoji}`;
+        if (reactionBunches[key]) {
+          const bunch = reactionBunches[key];
           bunch.actors.push({
             username: n.actor?.username ?? "",
             display_name: n.actor?.display_name ?? null,
@@ -225,11 +230,12 @@ export function NotificationBell({ userId }: { userId: string }) {
           bunch.ids.push(n.id);
           if (!n.read) bunch.unread = true;
         } else {
-          const bunch: BunchedLike = {
-            kind: "like_bunch",
+          const bunch: BunchedReaction = {
+            kind: "reaction_bunch",
             reviewId: n.review_id,
             gameTitle: (n.review?.games as any)?.title ?? "a game",
             gameSlug: (n.review?.games as any)?.slug ?? "",
+            emoji,
             actors: [{
               username: n.actor?.username ?? "",
               display_name: n.actor?.display_name ?? null,
@@ -239,7 +245,7 @@ export function NotificationBell({ userId }: { userId: string }) {
             latestId: n.id,
             ids: [n.id],
           };
-          likeBunches[key] = bunch;
+          reactionBunches[key] = bunch;
           result.push(bunch);
         }
       } else {
@@ -320,9 +326,9 @@ export function NotificationBell({ userId }: { userId: string }) {
               </p>
             ) : (
               displayItems.map((item) =>
-                item.kind === "like_bunch" ? (
-                  <LikeBunchRow
-                    key={`bunch-${item.reviewId}`}
+                item.kind === "reaction_bunch" ? (
+                  <ReactionBunchRow
+                    key={`bunch-${item.reviewId}-${item.emoji}`}
                     item={item}
                     onRead={() => markRead(item.ids)}
                     onClose={() => setOpen(false)}
@@ -524,13 +530,13 @@ function SingleRow({
   return null;
 }
 
-function LikeBunchRow({
+function ReactionBunchRow({
   item,
   onRead,
   onClose,
   onDismiss,
 }: {
-  item: BunchedLike;
+  item: BunchedReaction;
   onRead: () => void;
   onClose: () => void;
   onDismiss: () => void;
@@ -550,7 +556,7 @@ function LikeBunchRow({
   return (
     <RowWrapper
       unread={item.unread}
-      href={item.gameSlug ? `/games/${item.gameSlug}` : "/"}
+      href={item.gameSlug ? `/review/${item.reviewId}` : "/"}
       onRead={onRead}
       onClose={onClose}
       onDismiss={onDismiss}
@@ -571,7 +577,7 @@ function LikeBunchRow({
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-snug text-zinc-300">
           <span className="font-medium text-white">{actorText}</span>{" "}
-          liked your review of{" "}
+          reacted {item.emoji} to your review of{" "}
           <span className="font-medium text-white">{item.gameTitle}</span>.
         </p>
       </div>

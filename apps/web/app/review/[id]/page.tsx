@@ -1,5 +1,5 @@
 // apps/web/app/review/[id]/page.tsx
-// Server-rendered review detail page with likes and comments.
+// Server-rendered review detail page with emoji reactions and comments.
 // Accepts ?edit=true to drop the user straight into edit mode.
 
 import Image from "next/image";
@@ -55,7 +55,7 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
     profiles: { username: string | null; display_name: string | null; avatar_url: string | null } | null;
   };
 
-  const [{ data: rawGame }, { count: likeCount }, { data: rawComments }] =
+  const [{ data: rawGame }, { data: rawReactions }, { data: rawComments }] =
     await Promise.all([
       supabase
         .from("games")
@@ -63,8 +63,8 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
         .eq("id", review.game_id)
         .maybeSingle(),
       (supabase as any)
-        .from("review_likes")
-        .select("*", { count: "exact", head: true })
+        .from("review_reactions")
+        .select("emoji, user_id")
         .eq("review_id", id),
       (supabase as any)
         .from("review_comments")
@@ -74,22 +74,24 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
         .limit(100),
     ]);
 
+  // Aggregate reaction counts per emoji and collect the viewer's own reactions.
+  const allReactions = (rawReactions ?? []) as { emoji: string; user_id: string }[];
+  const reactionCounts: Record<string, number> = {};
+  for (const r of allReactions) {
+    reactionCounts[r.emoji] = (reactionCounts[r.emoji] ?? 0) + 1;
+  }
+  const userReactions = user
+    ? allReactions.filter((r) => r.user_id === user.id).map((r) => r.emoji)
+    : [];
+
   const isOwner = !!user && user.id === review.user_id;
-  let userHasLiked = false;
   let isPinned = false;
-  if (user) {
-    const [{ data: likeRow }, { data: ownerProfile }] = await Promise.all([
-      (supabase as any)
-        .from("review_likes")
-        .select("id")
-        .eq("review_id", id)
-        .eq("user_id", user.id)
-        .maybeSingle(),
-      isOwner
-        ? supabase.from("profiles").select("featured_review_id").eq("id", user.id).maybeSingle()
-        : Promise.resolve({ data: null }),
-    ]);
-    userHasLiked = !!likeRow;
+  if (user && isOwner) {
+    const { data: ownerProfile } = await supabase
+      .from("profiles")
+      .select("featured_review_id")
+      .eq("id", user.id)
+      .maybeSingle();
     isPinned = (ownerProfile as any)?.featured_review_id === id;
   }
 
@@ -188,8 +190,8 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
             initialIsPinned={isPinned}
             gameSlug={game?.slug ?? ""}
             startEditing={startEditing}
-            likeCount={likeCount ?? 0}
-            userHasLiked={userHasLiked}
+            initialReactionCounts={reactionCounts}
+            initialUserReactions={userReactions}
           />
         </article>
 

@@ -9,7 +9,7 @@
 import { useState, useId } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { LikeButton } from "./LikeButton";
+import { ReactionsRow } from "./ReactionsRow";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -23,8 +23,8 @@ interface Props {
   initialIsPinned: boolean;
   gameSlug: string;
   startEditing: boolean;     // true when ?edit=true is in the URL
-  likeCount: number;
-  userHasLiked: boolean;
+  initialReactionCounts: Record<string, number>;
+  initialUserReactions: string[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -39,8 +39,8 @@ export function ReviewActions({
   initialIsPinned,
   gameSlug,
   startEditing,
-  likeCount,
-  userHasLiked,
+  initialReactionCounts,
+  initialUserReactions,
 }: Props) {
   const [mode, setMode] = useState<"read" | "edit" | "confirm-delete">(
     isOwner && startEditing ? "edit" : "read"
@@ -136,11 +136,11 @@ export function ReviewActions({
 
         {/* Bottom action bar */}
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-5">
-          <LikeButton
+          <ReactionsRow
             reviewId={reviewId}
             userId={userId}
-            initialCount={likeCount}
-            initialLiked={userHasLiked}
+            initialCounts={initialReactionCounts}
+            initialUserReactions={initialUserReactions}
           />
 
           {isOwner && (
