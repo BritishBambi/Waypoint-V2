@@ -196,7 +196,7 @@ export default async function Home({
         const { data: myLogsRaw } = await supabase
           .from("game_logs")
           .select("game_id")
-          .eq("user_id", user.id)
+          .eq("user_id", user!.id)
           .in("status", ["playing", "played", "dropped", "backlog"])
           .limit(200);
         const myGameIds = (myLogsRaw ?? []).map((r) => (r as any).game_id as number).filter(Boolean);
@@ -207,7 +207,7 @@ export default async function Home({
             .select("user_id, game_id")
             .in("game_id", myGameIds)
             .in("status", ["playing", "played", "dropped", "backlog"])
-            .neq("user_id", user.id)
+            .neq("user_id", user!.id)
             .limit(2000);
           const sharedLogs = (sharedRaw ?? []) as { user_id: string; game_id: number }[];
 
@@ -240,7 +240,7 @@ export default async function Home({
             followCounts.set(f.followee_id, (followCounts.get(f.followee_id) ?? 0) + 1);
           }
           popularCandidates = [...followCounts.entries()]
-            .filter(([uid]) => !alreadyFollowedSet.has(uid) && uid !== user.id && !tasteIds.has(uid))
+            .filter(([uid]) => !alreadyFollowedSet.has(uid) && uid !== user!.id && !tasteIds.has(uid))
             .sort((a, b) => b[1] - a[1])
             .slice(0, remaining)
             .map(([userId]) => ({ userId, sharedGames: 0 }));
