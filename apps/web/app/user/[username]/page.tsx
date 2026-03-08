@@ -20,6 +20,7 @@ import { LibraryCarousel } from "./LibraryCarousel";
 import { WishlistCarousel, type WishlistItem } from "./WishlistCarousel";
 import { ListCard } from "@/components/ListCard";
 import { SpoilerReveal } from "./SpoilerReveal";
+import { GenreStatsSection, type GenreSlice, type DecadeData, type GenreStatsData } from "./GenreStatsSection";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
 // Supabase returns nested objects for FK joins. We define our own shapes and
@@ -68,6 +69,15 @@ type ShowcaseListData = {
   description: string | null;
   list_entries: Array<{ games: { cover_url: string | null } | null }>;
   list_likes: Array<{ id: string }>;
+};
+
+type LogGenreData = {
+  game_id: number | null;
+  games: {
+    genres: string[] | null;
+    release_date: string | null;
+    cover_url: string | null;
+  } | null;
 };
 
 
@@ -142,6 +152,7 @@ export default async function UserProfilePage({
     followingRes,
     showcaseList1Res,
     showcaseList2Res,
+    genreDataRes,
   ] =
     await Promise.all([
       supabase
@@ -224,6 +235,13 @@ export default async function UserProfilePage({
             .eq("id", showcaseList2Id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
+
+      // Genre stats — game genres + release dates for all non-wishlist logs.
+      supabase
+        .from("game_logs")
+        .select("game_id, games(genres, release_date, cover_url)")
+        .eq("user_id", profile.id)
+        .neq("status", "wishlist"),
   ]);
 
   const rawLogs      = logsRes.data;
@@ -269,6 +287,98 @@ export default async function UserProfilePage({
   }>;
   const showcaseList1 = (showcaseList1Res as any).data as ShowcaseListData | null;
   const showcaseList2 = (showcaseList2Res as any).data as ShowcaseListData | null;
+  const genreData = (genreDataRes.data ?? []) as unknown as LogGenreData[];
+
+  // ── Genre stats computation ──────────────────────────────────────────────────
+  // Build a map from game_id → { genres, release_date, cover_url }.
+  const genreGameMap = new Map<number, { genres: string[]; release_date: string | null; cover_url: string | null }>();
+  for (const log of genreData) {
+    if (log.game_id != null && log.games) {
+      genreGameMap.set(log.game_id, {
+        genres: log.games.genres ?? [],
+        release_date: log.games.release_date,
+        cover_url: log.games.cover_url,
+      });
+    }
+  }
+
+  // Genre → { count, covers }
+  const genreMap = new Map<string, { count: number; covers: string[] }>();
+  for (const game of genreGameMap.values()) {
+    for (const genre of game.genres) {
+      const entry = genreMap.get(genre) ?? { count: 0, covers: [] };
+      entry.count++;
+      if (entry.covers.length < 3 && game.cover_url) entry.covers.push(game.cover_url);
+      genreMap.set(genre, entry);
+    }
+  }
+
+  const sortedGenres = [...genreMap.entries()].sort((a, b) => b[1].count - a[1].count);
+  const top5 = sortedGenres.slice(0, 5);
+  const restCount = sortedGenres.slice(5).reduce((sum, [, g]) => sum + g.count, 0);
+
+  const totalLoggedForGenres = logs.length;
+  const genreSlices: GenreSlice[] = top5.map(([genre, { count, covers }]) => ({
+    genre,
+    count,
+    percentage: totalLoggedForGenres > 0 ? Math.round((count / totalLoggedForGenres) * 100) : 0,
+    covers,
+  }));
+  if (restCount > 0) {
+    genreSlices.push({
+      genre: "Other",
+      count: restCount,
+      percentage: Math.round((restCount / totalLoggedForGenres) * 100),
+      covers: [],
+    });
+  }
+
+  // Highest rated genre — needs ≥ 3 rated reviews per genre.
+  const genreRatings = new Map<string, number[]>();
+  for (const review of reviews) {
+    const gameId = (review.games as any)?.id as number | undefined;
+    if (!gameId || !review.rating) continue;
+    const gameGenres = genreGameMap.get(gameId)?.genres ?? [];
+    for (const genre of gameGenres) {
+      const arr = genreRatings.get(genre) ?? [];
+      arr.push(review.rating);
+      genreRatings.set(genre, arr);
+    }
+  }
+  let highestRated: GenreStatsData["highestRated"] = null;
+  let bestAvg = 0;
+  for (const [genre, ratings] of genreRatings) {
+    if (ratings.length < 3) continue;
+    const avg = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
+    if (avg > bestAvg) {
+      bestAvg = avg;
+      highestRated = { genre, avgRating: avg, covers: genreMap.get(genre)?.covers ?? [] };
+    }
+  }
+
+  // Decades — bucket release years into decades, sort chronologically.
+  const decadeMap = new Map<number, { count: number; covers: string[] }>();
+  for (const game of genreGameMap.values()) {
+    if (!game.release_date) continue;
+    const year = new Date(game.release_date).getUTCFullYear();
+    const decade = Math.floor(year / 10) * 10;
+    const entry = decadeMap.get(decade) ?? { count: 0, covers: [] };
+    entry.count++;
+    if (entry.covers.length < 3 && game.cover_url) entry.covers.push(game.cover_url);
+    decadeMap.set(decade, entry);
+  }
+  const decades: DecadeData[] = [...decadeMap.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([decade, { count, covers }]) => ({ decade, count, covers }));
+
+  const showGenreStats = logs.length >= 3 && (genreSlices.length > 0 || decades.length > 0);
+  const genreStatsData: GenreStatsData = {
+    totalLogged: totalLoggedForGenres,
+    genreSlices,
+    mostPlayed: genreSlices.find((s) => s.genre !== "Other") ?? null,
+    highestRated,
+    decades,
+  };
 
   // ── Featured review (showcase) — only fetch if showcase is set to 'review' ──
   const featuredReviewId = (profile as any).featured_review_id as string | null;
@@ -404,6 +514,9 @@ export default async function UserProfilePage({
           </div>
         </div>
       </section>
+
+      {/* ── Genre Stats ──────────────────────────────────────────────────────── */}
+      {showGenreStats && <GenreStatsSection data={genreStatsData} />}
 
       {/* ── Favourite Games ──────────────────────────────────────────────────── */}
       {/* Hidden entirely when the profile has no favourites and it's not the owner */}
