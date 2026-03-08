@@ -321,7 +321,33 @@ export default async function UserProfilePage({
     isFollowing = !!followRow;
   }
 
-  // ── 4. Render ───────────────────────────────────────────────────────────────
+  // ── 5. Spoiler auto-reveal ───────────────────────────────────────────────────
+  // Fetch the viewer's played games + their own reviews so we can auto-reveal
+  // spoilers for games they've already experienced. Skip entirely if the profile
+  // has no spoiler-tagged reviews (avoids two unnecessary DB calls).
+  const profileHasSpoilers = reviews.some((r) => r.is_spoiler);
+  const autoRevealGameIds = new Set<number>();
+  if (profileHasSpoilers && user && !isOwnProfile) {
+    const [viewerLogsRes, viewerReviewsRes] = await Promise.all([
+      supabase
+        .from("game_logs")
+        .select("game_id")
+        .eq("user_id", user.id)
+        .in("status", ["playing", "played"]),
+      supabase
+        .from("reviews")
+        .select("game_id")
+        .eq("user_id", user.id),
+    ]);
+    for (const log of (viewerLogsRes.data ?? []) as any[]) {
+      if (log.game_id != null) autoRevealGameIds.add(log.game_id);
+    }
+    for (const rev of (viewerReviewsRes.data ?? []) as any[]) {
+      if (rev.game_id != null) autoRevealGameIds.add(rev.game_id);
+    }
+  }
+
+  // ── 6. Render ───────────────────────────────────────────────────────────────
   return (
     <main className="mx-auto max-w-6xl px-4 py-12">
 
@@ -484,7 +510,10 @@ export default async function UserProfilePage({
       {showcaseType === "review" && featuredReview && (
         <section className="mt-10">
           <h2 className="mb-4 text-base font-semibold text-white">Review Showcase</h2>
-          <ShowcaseCard review={featuredReview} />
+          <ShowcaseCard
+            review={featuredReview}
+            autoRevealSpoilers={isOwnProfile || autoRevealGameIds.has(featuredReview.games?.id ?? -1)}
+          />
         </section>
       )}
 
@@ -639,7 +668,11 @@ export default async function UserProfilePage({
         ) : (
           <div className="space-y-3">
             {reviews.map((review) => (
-              <ReviewCard key={review.id} review={review} />
+              <ReviewCard
+                key={review.id}
+                review={review}
+                autoRevealSpoilers={isOwnProfile || autoRevealGameIds.has(review.games?.id ?? -1)}
+              />
             ))}
           </div>
         )}
@@ -676,7 +709,7 @@ function StatLinkPill({ value, label, href }: { value: number; label: string; hr
 }
 
 // Review card: small cover left, title + rating + body + date right
-function ReviewCard({ review }: { review: ReviewWithGame }) {
+function ReviewCard({ review, autoRevealSpoilers }: { review: ReviewWithGame; autoRevealSpoilers: boolean }) {
   const { id, rating, body, is_spoiler, published_at, games } = review;
   if (!games) return null;
 
@@ -725,9 +758,8 @@ function ReviewCard({ review }: { review: ReviewWithGame }) {
             <span className="text-xs text-zinc-500">/5</span>
           </div>
 
-          {/* Body — static spoiler notice or plain text (interactive reveal is on the review page) */}
           {body && is_spoiler ? (
-            <p className="mt-1.5 text-sm text-zinc-500 italic">⚠ Contains spoilers — click to read</p>
+            <SpoilerReveal body={body} autoRevealSpoilers={autoRevealSpoilers} />
           ) : body ? (
             <p className="mt-1.5 text-sm leading-relaxed text-zinc-400 line-clamp-3">
               {body}
@@ -744,7 +776,7 @@ function ReviewCard({ review }: { review: ReviewWithGame }) {
 }
 
 // Showcase / featured review card — prominent single card with "✦ Showcase" badge
-function ShowcaseCard({ review }: { review: FeaturedReview }) {
+function ShowcaseCard({ review, autoRevealSpoilers }: { review: FeaturedReview; autoRevealSpoilers: boolean }) {
   const { id, rating, body, is_spoiler, games } = review;
   if (!games) return null;
   const year = games.release_date ? games.release_date.slice(0, 4) : null;
@@ -796,7 +828,7 @@ function ShowcaseCard({ review }: { review: FeaturedReview }) {
 
         {/* Body */}
         {body && is_spoiler ? (
-          <SpoilerReveal body={body} />
+          <SpoilerReveal body={body} autoRevealSpoilers={autoRevealSpoilers} />
         ) : truncated ? (
           <p className="text-sm leading-relaxed text-zinc-400">
             {truncated}

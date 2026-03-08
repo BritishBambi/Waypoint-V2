@@ -2,8 +2,14 @@
 
 import { useState } from "react";
 
-export function SpoilerReveal({ body }: { body: string }) {
-  const [revealed, setRevealed] = useState(false);
+export function SpoilerReveal({
+  body,
+  autoRevealSpoilers = false,
+}: {
+  body: string;
+  autoRevealSpoilers?: boolean;
+}) {
+  const [revealed, setRevealed] = useState(autoRevealSpoilers);
   return (
     <div className="relative mt-1.5">
       <p

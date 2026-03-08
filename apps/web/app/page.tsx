@@ -12,6 +12,7 @@ import { igdbCover } from "@/lib/igdb";
 import { PopularCarousel } from "./PopularCarousel";
 import { UpcomingCarousel } from "./UpcomingCarousel";
 import { WelcomeToast } from "@/components/WelcomeToast";
+import { WhoToFollowWidget, type SuggestedUser } from "./WhoToFollowWidget";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -183,6 +184,119 @@ export default async function Home({
     const followedIds = (followRows ?? []).map((r) => r.followee_id);
     const upcomingGames: UpcomingGame[] = igdbUpcomingGames ?? [];
 
+    // ── Who to Follow (runs in parallel with Phase 2 feed below) ─────────────
+    // Closure captures supabase, user, followedIds — all resolved from Phase 1.
+    async function buildSuggestions(): Promise<SuggestedUser[]> {
+      try {
+        const alreadyFollowedSet = new Set(followedIds);
+
+        // Step 1 — taste-matched users (≥2 shared logged games).
+        let tasteCandidates: { userId: string; sharedGames: number }[] = [];
+
+        const { data: myLogsRaw } = await supabase
+          .from("game_logs")
+          .select("game_id")
+          .eq("user_id", user.id)
+          .in("status", ["playing", "played", "dropped", "backlog"])
+          .limit(200);
+        const myGameIds = (myLogsRaw ?? []).map((r) => (r as any).game_id as number).filter(Boolean);
+
+        if (myGameIds.length > 0) {
+          const { data: sharedRaw } = await supabase
+            .from("game_logs")
+            .select("user_id, game_id")
+            .in("game_id", myGameIds)
+            .in("status", ["playing", "played", "dropped", "backlog"])
+            .neq("user_id", user.id)
+            .limit(2000);
+          const sharedLogs = (sharedRaw ?? []) as { user_id: string; game_id: number }[];
+
+          const sharedByUser = new Map<string, Set<number>>();
+          for (const log of sharedLogs) {
+            if (alreadyFollowedSet.has(log.user_id)) continue;
+            const s = sharedByUser.get(log.user_id) ?? new Set();
+            s.add(log.game_id);
+            sharedByUser.set(log.user_id, s);
+          }
+          tasteCandidates = [...sharedByUser.entries()]
+            .filter(([, games]) => games.size >= 2)
+            .sort((a, b) => b[1].size - a[1].size)
+            .slice(0, 3)
+            .map(([userId, games]) => ({ userId, sharedGames: games.size }));
+        }
+
+        // Step 2 — fill remaining slots with most-followed users not yet followed.
+        const remaining = 3 - tasteCandidates.length;
+        let popularCandidates: { userId: string; sharedGames: number }[] = [];
+
+        if (remaining > 0) {
+          const tasteIds = new Set(tasteCandidates.map((c) => c.userId));
+          const { data: followsRaw } = await supabase
+            .from("follows")
+            .select("followee_id")
+            .limit(2000);
+          const followCounts = new Map<string, number>();
+          for (const f of (followsRaw ?? []) as { followee_id: string }[]) {
+            followCounts.set(f.followee_id, (followCounts.get(f.followee_id) ?? 0) + 1);
+          }
+          popularCandidates = [...followCounts.entries()]
+            .filter(([uid]) => !alreadyFollowedSet.has(uid) && uid !== user.id && !tasteIds.has(uid))
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, remaining)
+            .map(([userId]) => ({ userId, sharedGames: 0 }));
+        }
+
+        const allCandidates = [...tasteCandidates, ...popularCandidates];
+        if (allCandidates.length === 0) return [];
+
+        const candidateIds = allCandidates.map((c) => c.userId);
+        const [profilesRes, favsRes] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("id, username, display_name, avatar_url")
+            .in("id", candidateIds),
+          supabase
+            .from("favourite_games")
+            .select("user_id, position, games(cover_url)")
+            .in("user_id", candidateIds)
+            .order("position"),
+        ]);
+
+        const profiles = (profilesRes.data ?? []) as {
+          id: string; username: string; display_name: string | null; avatar_url: string | null;
+        }[];
+        const favs = (favsRes.data ?? []) as {
+          user_id: string; games: { cover_url: string | null } | null;
+        }[];
+
+        const favsByUser = new Map<string, string[]>();
+        for (const fav of favs) {
+          if (!fav.games?.cover_url) continue;
+          const arr = favsByUser.get(fav.user_id) ?? [];
+          if (arr.length < 3) arr.push(fav.games.cover_url);
+          favsByUser.set(fav.user_id, arr);
+        }
+
+        const profileMap = new Map(profiles.map((p) => [p.id, p]));
+        return allCandidates
+          .map((c) => {
+            const p = profileMap.get(c.userId);
+            if (!p) return null;
+            return {
+              id: p.id,
+              username: p.username,
+              displayName: p.display_name ?? p.username,
+              avatarUrl: p.avatar_url,
+              sharedGames: c.sharedGames,
+              favouriteCovers: favsByUser.get(p.id) ?? [],
+            } satisfies SuggestedUser;
+          })
+          .filter((s): s is SuggestedUser => s !== null);
+      } catch {
+        return [];
+      }
+    }
+
     // Use IGDB results if available; otherwise fall back to most-logged on Waypoint.
     let popularGames: GameStub[] = igdbPopularGames ?? [];
 
@@ -230,10 +344,10 @@ export default async function Home({
       }
     }
 
-    // Phase 2: feed filtered to followed users only (own activity is in "Your Library" below).
-    const feedQuery =
+    // Phase 2: feed + who-to-follow suggestions in parallel.
+    const [feedResult, suggestions] = await Promise.all([
       followedIds.length > 0
-        ? await supabase
+        ? supabase
             .from("game_logs")
             .select(
               "id, status, created_at, updated_at, " +
@@ -244,8 +358,10 @@ export default async function Home({
             .in("user_id", followedIds)
             .order("updated_at", { ascending: false })
             .limit(12)
-        : { data: [] };
-    const { data: rawFeed } = feedQuery;
+        : Promise.resolve({ data: [] }),
+      buildSuggestions(),
+    ]);
+    const { data: rawFeed } = feedResult;
 
     const username    = profile?.username ?? "there";
     const displayName = profile?.display_name ?? username;
@@ -380,6 +496,11 @@ export default async function Home({
             </h2>
             <UpcomingCarousel games={upcomingGames} />
           </section>
+        )}
+
+        {/* ── Who to Follow ─────────────────────────────────────────────────── */}
+        {suggestions.length > 0 && (
+          <WhoToFollowWidget suggestions={suggestions} currentUserId={user.id} />
         )}
 
         {/* ── Recent Lists ──────────────────────────────────────────────────── */}
