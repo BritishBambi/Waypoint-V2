@@ -3,6 +3,7 @@
 // Shown on user profiles below the stats bar, above Favourite Games.
 
 import Image from "next/image";
+import Link from "next/link";
 import { igdbCover } from "@/lib/igdb";
 
 // ─── Exported types (consumed by page.tsx for computation) ────────────────────
@@ -17,7 +18,7 @@ export type GenreSlice = {
 export type DecadeData = {
   decade: number;  // e.g. 1990
   count: number;
-  covers: string[]; // up to 3 cover URLs
+  games: Array<{ cover_url: string | null; slug: string }>; // up to 10, newest first
 };
 
 export type GenreStatsData = {
@@ -115,15 +116,15 @@ export function GenreStatsSection({ data }: { data: GenreStatsData }) {
         </div>
       )}
 
-      {/* ── Row 2: Favourite Decades ─────────────────────────────────────────── */}
+      {/* ── Row 2: By Decade ─────────────────────────────────────────────────── */}
       {decades.length > 0 && (
-        <div className="mt-4">
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+        <div className="mt-6">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
             By Decade
           </p>
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          <div>
             {decades.map((d) => (
-              <DecadeCard key={d.decade} data={d} />
+              <DecadeRow key={d.decade} data={d} />
             ))}
           </div>
         </div>
@@ -240,14 +241,14 @@ function GenreCard({
           {covers.slice(0, 3).map((url, i) => (
             <div
               key={i}
-              className={`relative h-14 w-10 shrink-0 overflow-hidden rounded-md bg-zinc-800${i > 0 ? " -ml-3" : ""}`}
+              className={`relative h-[120px] w-20 shrink-0 overflow-hidden rounded-md bg-zinc-800${i > 0 ? " -ml-6" : ""}`}
               style={{ zIndex: covers.length - i }}
             >
               <Image
                 src={igdbCover(url, "t_cover_big")!}
                 alt=""
                 fill
-                sizes="40px"
+                sizes="80px"
                 className="object-cover"
               />
             </div>
@@ -258,39 +259,44 @@ function GenreCard({
   );
 }
 
-// ─── Decade card ──────────────────────────────────────────────────────────────
+// ─── Decade row (Letterboxd-style vertical layout) ────────────────────────────
 
-function DecadeCard({ data }: { data: DecadeData }) {
-  const { decade, count, covers } = data;
+function DecadeRow({ data }: { data: DecadeData }) {
+  const { decade, count, games } = data;
 
   return (
-    <div className="flex w-[130px] shrink-0 flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-3">
-      {/* Cover fan */}
-      <div className="mb-2 flex items-end">
-        {covers.length > 0 ? (
-          covers.slice(0, 3).map((url, i) => (
-            <div
-              key={i}
-              className={`relative h-[70px] w-[48px] shrink-0 overflow-hidden rounded-md bg-zinc-800${i > 0 ? " -ml-3" : ""}`}
-              style={{ zIndex: covers.length - i }}
-            >
-              <Image
-                src={igdbCover(url, "t_cover_big")!}
-                alt=""
-                fill
-                sizes="48px"
-                className="object-cover"
-              />
-            </div>
-          ))
-        ) : (
-          <div className="h-[70px] w-full rounded-md bg-zinc-800" aria-hidden="true" />
-        )}
+    <div className="flex items-start gap-4 border-t border-zinc-800 py-4">
+      {/* Left — fixed-width label */}
+      <div className="w-20 shrink-0">
+        <p className="text-lg font-bold leading-none text-white">{decade}s</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          {count} {count === 1 ? "game" : "games"}
+        </p>
       </div>
-      <p className="text-sm font-bold text-white">{decade}s</p>
-      <p className="text-xs text-zinc-500">
-        {count} {count === 1 ? "game" : "games"}
-      </p>
+
+      {/* Right — wrapping cover grid, up to 10 covers */}
+      <div className="flex flex-wrap gap-2">
+        {games.map((game, i) => {
+          const src = game.cover_url ? igdbCover(game.cover_url, "t_cover_big") : null;
+          return (
+            <Link
+              key={i}
+              href={`/games/${game.slug}`}
+              className="group relative h-[120px] w-20 shrink-0 overflow-hidden rounded-sm bg-zinc-800"
+            >
+              {src ? (
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  sizes="80px"
+                  className="object-cover transition-opacity group-hover:opacity-75"
+                />
+              ) : null}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -104,13 +104,16 @@ export function UserMenu({ username, avatarUrl }: UserMenuProps) {
 
           <MenuItem href="/" onNavigate={() => setOpen(false)}>Home</MenuItem>
           <MenuItem href={`/user/${username}`} onNavigate={() => setOpen(false)}>Profile</MenuItem>
-          <MenuItem href="/search?tab=games" onNavigate={() => setOpen(false)}>Games</MenuItem>
-          <MenuItem href="/search?tab=users" onNavigate={() => setOpen(false)}>Find Friends</MenuItem>
 
           <div className="my-1 border-t border-zinc-800" />
 
           <MenuItem href={`/user/${username}/library`} onNavigate={() => setOpen(false)}>Library</MenuItem>
           <MenuItem href={`/user/${username}/wishlist`} onNavigate={() => setOpen(false)}>Wishlist</MenuItem>
+          <MenuItem href={`/user/${username}/stats`} onNavigate={() => setOpen(false)}>Stats</MenuItem>
+
+          <div className="my-1 border-t border-zinc-800" />
+
+          <MenuItem href="/search?tab=users" onNavigate={() => setOpen(false)}>Find Friends</MenuItem>
 
           <div className="my-1 border-t border-zinc-800" />
 
