@@ -1,12 +1,12 @@
 "use client";
 
-// CommentsSection — shows comments on a review and lets logged-in users post
-// and delete their own. Uses the review_comments table (migration 0007).
-// Supabase queries use `(supabase as any)` until types are regenerated.
+// CommentsSection — shows comments on a review and lets logged-in users post,
+// delete, and reply to comments. Replies are visually indented one level.
+// @username mentions in body text are highlighted and linked.
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { ReviewComment } from "./page";
 
@@ -16,11 +16,50 @@ interface Props {
   initialComments: ReviewComment[];
 }
 
+// Highlights @username tokens in comment body with violet text linked to profile.
+function renderBody(text: string): React.ReactNode {
+  const parts = text.split(/(@\w+)/g);
+  return parts.map((part, i) => {
+    if (/^@\w+$/.test(part)) {
+      const username = part.slice(1);
+      return (
+        <Link
+          key={i}
+          href={`/user/${username}`}
+          onClick={(e) => e.stopPropagation()}
+          className="font-medium text-violet-400 hover:text-violet-300"
+        >
+          {part}
+        </Link>
+      );
+    }
+    return part;
+  });
+}
+
 export function CommentsSection({ reviewId, userId, initialComments }: Props) {
-  const [comments, setComments] = useState<ReviewComment[]>(initialComments);
-  const [body, setBody]         = useState("");
+  const [comments, setComments]   = useState<ReviewComment[]>(initialComments);
+  const [body, setBody]           = useState("");
   const [isPosting, setIsPosting] = useState(false);
   const [error, setError]         = useState<string | null>(null);
+  const [replyTo, setReplyTo]     = useState<{ id: string; username: string } | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function handleReply(commentId: string, username: string) {
+    setReplyTo({ id: commentId, username });
+    setBody(`@${username} `);
+    setTimeout(() => {
+      textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      textareaRef.current?.focus();
+    }, 50);
+  }
+
+  function cancelReply() {
+    if (replyTo && body.startsWith(`@${replyTo.username} `)) {
+      setBody(body.slice(replyTo.username.length + 2));
+    }
+    setReplyTo(null);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,8 +72,13 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
     const supabase = createClient();
     const { data, error: insertErr } = await (supabase as any)
       .from("review_comments")
-      .insert({ review_id: reviewId, user_id: userId, body: trimmed })
-      .select("*, profiles(username, display_name, avatar_url)")
+      .insert({
+        review_id: reviewId,
+        user_id: userId,
+        body: trimmed,
+        ...(replyTo ? { reply_to_id: replyTo.id } : {}),
+      })
+      .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url)")
       .maybeSingle();
 
     if (insertErr) {
@@ -42,13 +86,13 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
     } else if (data) {
       setComments((prev) => [...prev, data as ReviewComment]);
       setBody("");
+      setReplyTo(null);
     }
 
     setIsPosting(false);
   }
 
   async function handleDelete(commentId: string) {
-    // Optimistic removal.
     setComments((prev) => prev.filter((c) => c.id !== commentId));
 
     const supabase = createClient();
@@ -59,10 +103,9 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
       .eq("user_id", userId);
 
     if (deleteErr) {
-      // Re-fetch on error to restore correct state.
       const { data } = await (supabase as any)
         .from("review_comments")
-        .select("*, profiles(username, display_name, avatar_url)")
+        .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url)")
         .eq("review_id", reviewId)
         .order("created_at", { ascending: true });
       if (data) setComments(data as ReviewComment[]);
@@ -89,6 +132,7 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
               comment={comment}
               currentUserId={userId}
               onDelete={handleDelete}
+              onReply={handleReply}
             />
           ))}
         </div>
@@ -102,11 +146,33 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
           onSubmit={handleSubmit}
           className="rounded-xl border border-zinc-800 bg-zinc-900 p-4"
         >
+          {/* Replying-to banner */}
+          {replyTo && (
+            <div className="mb-2 flex items-center justify-between rounded-lg bg-zinc-800 px-3 py-1.5">
+              <span className="text-xs text-zinc-400">
+                Replying to{" "}
+                <span className="font-medium text-violet-400">@{replyTo.username}</span>
+              </span>
+              <button
+                type="button"
+                onClick={cancelReply}
+                aria-label="Cancel reply"
+                className="ml-2 rounded p-0.5 text-zinc-500 transition-colors hover:text-white"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           <textarea
+            ref={textareaRef}
             value={body}
             onChange={(e) => setBody(e.target.value.slice(0, 500))}
             rows={3}
-            placeholder="Leave a comment…"
+            placeholder={replyTo ? `Reply to @${replyTo.username}…` : "Leave a comment…"}
             className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
           <div className="mt-2 flex items-center justify-between gap-4">
@@ -125,7 +191,7 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
               disabled={isPosting || !body.trim()}
               className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
             >
-              {isPosting ? "Posting…" : "Post Comment"}
+              {isPosting ? "Posting…" : replyTo ? "Post Reply" : "Post Comment"}
             </button>
           </div>
         </form>
@@ -150,14 +216,17 @@ function CommentCard({
   comment,
   currentUserId,
   onDelete,
+  onReply,
 }: {
   comment: ReviewComment;
   currentUserId: string | null;
   onDelete: (id: string) => void;
+  onReply: (id: string, username: string) => void;
 }) {
   const author = comment.profiles;
   const displayName = author?.display_name ?? author?.username ?? "Anonymous";
   const isOwn = currentUserId === comment.user_id;
+  const isReply = comment.reply_to_id !== null;
 
   const dateStr = new Date(comment.created_at).toLocaleDateString("en-GB", {
     day: "numeric",
@@ -166,7 +235,10 @@ function CommentCard({
   });
 
   return (
-    <div className="flex gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+    <div
+      id={`comment-${comment.id}`}
+      className={`group flex gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-4 ${isReply ? "ml-10" : ""}`}
+    >
       {/* Avatar → user profile */}
       {author?.username ? (
         <Link href={`/user/${author.username}`} className="shrink-0">
@@ -213,33 +285,45 @@ function CommentCard({
             <span className="text-xs text-zinc-600">{dateStr}</span>
           </div>
 
-          {isOwn && (
-            <button
-              onClick={() => onDelete(comment.id)}
-              aria-label="Delete comment"
-              className="shrink-0 rounded p-0.5 text-zinc-600 transition-colors hover:text-red-400"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
+          {/* Action buttons — Reply (always, if logged in) + Delete (own only) */}
+          <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            {currentUserId && author?.username && (
+              <button
+                type="button"
+                onClick={() => onReply(comment.id, author.username!)}
+                className="rounded px-1.5 py-0.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-zinc-300"
               >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          )}
+                Reply
+              </button>
+            )}
+            {isOwn && (
+              <button
+                onClick={() => onDelete(comment.id)}
+                aria-label="Delete comment"
+                className="rounded p-0.5 text-zinc-600 transition-colors hover:text-red-400"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
 
         <p className="whitespace-pre-wrap text-sm text-zinc-300">
-          {comment.body}
+          {renderBody(comment.body)}
         </p>
       </div>
     </div>

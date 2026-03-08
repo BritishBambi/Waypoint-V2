@@ -502,19 +502,22 @@ function SingleRow({
     );
   }
 
-  if (item.type === "review_comment") {
-    const gameSlug = (item.review?.games as any)?.slug ?? "";
+  if (item.type === "review_comment" || item.type === "comment_reply") {
+    const gameSlug  = (item.review?.games as any)?.slug  ?? "";
     const gameTitle = (item.review?.games as any)?.title ?? "your review";
     const preview = item.comment_body
       ? item.comment_body.length > 60
         ? item.comment_body.slice(0, 60) + "…"
         : item.comment_body
       : null;
+    const href = gameSlug
+      ? `/review/${item.review_id}${item.comment_id ? `#comment-${item.comment_id}` : ""}`
+      : "/";
 
     return (
       <RowWrapper
         unread={!item.read}
-        href={gameSlug ? `/games/${gameSlug}` : "/"}
+        href={href}
         onRead={onRead}
         onClose={onClose}
         onDismiss={onDismiss}
@@ -523,7 +526,7 @@ function SingleRow({
         <div className="min-w-0 flex-1">
           <p className="text-sm leading-snug text-zinc-300">
             <span className="font-medium text-white">{name}</span>{" "}
-            commented on your review of{" "}
+            {item.type === "comment_reply" ? "replied to your comment on" : "commented on your review of"}{" "}
             <span className="font-medium text-white">{gameTitle}</span>.
           </p>
           {preview && (

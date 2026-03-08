@@ -19,6 +19,7 @@ export type ReviewComment = {
   user_id: string;
   body: string;
   created_at: string;
+  reply_to_id: string | null;
   profiles: {
     username: string | null;
     display_name: string | null;
@@ -68,7 +69,7 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
         .eq("review_id", id),
       (supabase as any)
         .from("review_comments")
-        .select("*, profiles(username, display_name, avatar_url)")
+        .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url)")
         .eq("review_id", id)
         .order("created_at", { ascending: true })
         .limit(100),
