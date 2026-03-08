@@ -84,7 +84,7 @@ export default function RegisterPage() {
       // __InternalSupabase: { PostgrestVersion: "14.1" }.
       await (supabase as any).from("profiles").upsert(
         { id: data.user.id, username: fields.username },
-        { onConflict: "id", ignoreDuplicates: true }
+        { onConflict: "id" }
       );
       router.push("/dashboard");
       router.refresh();

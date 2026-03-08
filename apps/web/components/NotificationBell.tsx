@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 
 type NotificationRow = {
   id: string;
-  type: "follow" | "review_like" | "review_reaction" | "review_comment" | "list_like" | "welcome";
+  type: "follow" | "review_like" | "review_reaction" | "review_comment" | "comment_reply" | "list_like" | "welcome";
   read: boolean;
   created_at: string;
   actor_id: string | null;

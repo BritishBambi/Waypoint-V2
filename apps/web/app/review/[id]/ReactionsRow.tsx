@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-const EMOJIS = ["👍", "❤️", "🤡", "😂", "🎉"] as const;
+const EMOJIS = ["👍", "❤️", "🔥", "🤡", "😂", "🎉"] as const;
 type Emoji = (typeof EMOJIS)[number];
 
 interface Props {
