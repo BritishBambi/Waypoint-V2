@@ -588,7 +588,7 @@ export default async function Home({
         {/* ── Lists ─────────────────────────────────────────────────────────── */}
         {(recentLists.length > 0 || trendingLists.length > 0) && (
           <section>
-            <div className={`grid grid-cols-1 gap-8 ${trendingLists.length > 0 ? "md:grid-cols-2" : ""}`}>
+            <div className={`grid gap-8 items-start ${trendingLists.length > 0 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"}`}>
 
               {/* Recent Lists */}
               {recentLists.length > 0 && (
@@ -596,7 +596,9 @@ export default async function Home({
                   <h2 className="mb-4 text-base font-semibold text-white">Recent Lists</h2>
                   <div className="flex flex-col gap-6">
                     {recentLists.map((list) => (
-                      <RecentListCard key={list.id} list={list} />
+                      <div key={list.id} className="w-full max-w-md">
+                        <RecentListCard list={list} />
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -608,7 +610,9 @@ export default async function Home({
                   <h2 className="mb-4 text-base font-semibold text-white">Trending This Week</h2>
                   <div className="flex flex-col gap-6">
                     {trendingLists.map((list) => (
-                      <RecentListCard key={list.id} list={list} />
+                      <div key={list.id} className="w-full max-w-md">
+                        <RecentListCard list={list} />
+                      </div>
                     ))}
                   </div>
                 </div>
