@@ -51,7 +51,7 @@ export function ChangelogModal() {
         </div>
 
         {/* ── Scrollable content ───────────────────────────────────────────── */}
-        <div className="max-h-[55vh] overflow-y-auto px-6 py-4 space-y-8">
+        <div className="max-h-[55vh] overflow-y-auto px-6 py-4 space-y-8 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-purple-600/50 hover:[&::-webkit-scrollbar-thumb]:bg-purple-600/80">
           {CHANGELOGS.map((entry, entryIndex) => (
             <ChangelogEntryBlock
               key={entry.version}
