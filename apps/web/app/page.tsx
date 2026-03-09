@@ -69,7 +69,7 @@ type RecentListItem = {
     avatar_url: string | null;
   } | null;
   list_entries: Array<{ position: number | null; games: { cover_url: string | null } | null }>;
-  list_likes: Array<{ id: string }>;
+  list_likes: Array<{ id: string; created_at: string }>;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ export default async function Home({
           id, title, description, created_at,
           profiles!lists_user_id_fkey(username, display_name, avatar_url),
           list_entries(position, games(cover_url)),
-          list_likes(id)
+          list_likes(id, created_at)
         `)
         .eq("is_public", true)
         .order("created_at", { ascending: false })
@@ -389,8 +389,20 @@ export default async function Home({
     const displayName = profile?.display_name ?? username;
     const feed        = (rawFeed ?? []) as unknown as FeedItem[];
     const isFollowingNobody = followedIds.length === 0;
-    const allLists    = (recentListsRes.data ?? []) as unknown as RecentListItem[];
-    const recentLists = allLists.filter((l) => l.list_entries.length > 0).slice(0, 6);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const allLists        = (recentListsRes.data ?? []) as unknown as RecentListItem[];
+    const listsWithEntries = allLists.filter((l) => l.list_entries.length > 0);
+    const recentLists     = listsWithEntries.slice(0, 2);
+    const recentListIds   = new Set(recentLists.map((l) => l.id));
+    const trendingLists   = listsWithEntries
+      .map((l) => ({
+        list: l,
+        recentLikes: l.list_likes.filter((lk) => lk.created_at >= sevenDaysAgo).length,
+      }))
+      .filter(({ list, recentLikes }) => recentLikes > 0 && !recentListIds.has(list.id))
+      .sort((a, b) => b.recentLikes - a.recentLikes)
+      .slice(0, 2)
+      .map(({ list }) => list);
 
     const showWelcome = searchParams.welcome === "1";
 
@@ -573,14 +585,35 @@ export default async function Home({
           <WhoToFollowWidget suggestions={suggestions} currentUserId={user.id} />
         )}
 
-        {/* ── Recent Lists ──────────────────────────────────────────────────── */}
-        {recentLists.length > 0 && (
+        {/* ── Lists ─────────────────────────────────────────────────────────── */}
+        {(recentLists.length > 0 || trendingLists.length > 0) && (
           <section>
-            <h2 className="mb-4 text-base font-semibold text-white">Recent Lists</h2>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {recentLists.map((list) => (
-                <RecentListCard key={list.id} list={list} />
-              ))}
+            <div className={`grid grid-cols-1 gap-8 ${trendingLists.length > 0 ? "md:grid-cols-2" : ""}`}>
+
+              {/* Recent Lists */}
+              {recentLists.length > 0 && (
+                <div>
+                  <h2 className="mb-4 text-base font-semibold text-white">Recent Lists</h2>
+                  <div className="flex flex-col gap-6">
+                    {recentLists.map((list) => (
+                      <RecentListCard key={list.id} list={list} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Trending This Week */}
+              {trendingLists.length > 0 && (
+                <div>
+                  <h2 className="mb-4 text-base font-semibold text-white">Trending This Week</h2>
+                  <div className="flex flex-col gap-6">
+                    {trendingLists.map((list) => (
+                      <RecentListCard key={list.id} list={list} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
             </div>
           </section>
         )}
