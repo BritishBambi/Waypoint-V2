@@ -4,7 +4,7 @@ import type { Tables } from "@waypoint/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type LogRow = Pick<Tables<"game_logs">, "id" | "status">;
+export type LogRow = Pick<Tables<"game_logs">, "id" | "status"> & { notes: string | null };
 
 // ─── Query key ────────────────────────────────────────────────────────────────
 // Export the key factory so callers can use it for invalidateQueries / setQueryData
@@ -32,7 +32,7 @@ export function useGameLog(
     queryFn: async () => {
       const { data, error } = await client
         .from("game_logs")
-        .select("id, status")
+        .select("id, status, notes")
         .eq("game_id", gameId)
         .eq("user_id", userId!)
         .maybeSingle();

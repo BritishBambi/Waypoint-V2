@@ -37,7 +37,7 @@ export type ReviewWithAuthor = Tables<"reviews"> & {
 };
 
 // Serialisable slice of a game_log row passed to Client Components.
-export type LogSummary = Pick<Tables<"game_logs">, "id" | "status">;
+export type LogSummary = Pick<Tables<"game_logs">, "id" | "status"> & { notes: string | null };
 
 // DLC / expansion item returned by igdb-game-detail alongside the main game.
 export type DlcItem = {
@@ -140,7 +140,7 @@ export default async function GameDetailPage({ params }: Props) {
     user
       ? supabase
           .from("game_logs")
-          .select("id, status")
+          .select("id, status, notes")
           .eq("user_id", user.id)
           .eq("game_id", game.id)
           .maybeSingle()

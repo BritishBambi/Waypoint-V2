@@ -209,14 +209,16 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
   const [status, setStatus] = useState<Status | null>(
     (existingLog?.status as Status) ?? (isUnreleased ? "wishlist" : null)
   );
+  const [personalNotes, setPersonalNotes] = useState(existingLog?.notes ?? "");
   const [rating, setRating] = useState(0);
   const [note, setNote] = useState("");
   const [isSpoiler, setIsSpoiler] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<Status | null>(null);
 
+  const showPersonalNotes = status !== null && status !== "wishlist";
   const showRating = status === "playing" || status === "played";
-  const showNotes = status === "playing" || status === "played" || status === "dropped";
+  const showNotes = status === "playing" || status === "played";
 
   async function handleSave() {
     setIsSaving(true);
@@ -326,7 +328,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
     const { data: logData, error: logErr } = await (supabase as any)
       .from("game_logs")
       .upsert(
-        { user_id: userId, game_id: game.id, status },
+        { user_id: userId, game_id: game.id, status, notes: personalNotes.trim() || null },
         { onConflict: "user_id,game_id" }
       )
       .select("id")
@@ -388,7 +390,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
 
     // ── Step 5: Success ────────────────────────────────────────────────────
     toast(`${game.title} logged!`);
-    onSaved({ id: logId, status: status! });
+    onSaved({ id: logId, status: status!, notes: personalNotes.trim() || null });
     // isSaving intentionally left true — the modal closes immediately and
     // there's no point flashing the button back to "Save".
   }
@@ -434,7 +436,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
               /* Unreleased — only Wishlist */
               <div className="grid grid-cols-1 gap-2">
                 {visibleStatuses.map(({ value, label }) => (
-                  <StatusButton key={value} value={value} label={label} current={status} onSelect={setStatus} onWishlistWithNote={() => setPendingStatus("wishlist")} note={note} />
+                  <StatusButton key={value} value={value} label={label} current={status} onSelect={setStatus} onWishlistWithNote={() => setPendingStatus("wishlist")} note={personalNotes || note} />
                 ))}
               </div>
             ) : (
@@ -442,16 +444,38 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
               <div className="flex flex-col gap-2">
                 <div className="flex gap-2">
                   {visibleStatuses.slice(0, 3).map(({ value, label }) => (
-                    <StatusButton key={value} value={value} label={label} current={status} onSelect={setStatus} onWishlistWithNote={() => setPendingStatus("wishlist")} note={note} className="flex-1" />
+                    <StatusButton key={value} value={value} label={label} current={status} onSelect={setStatus} onWishlistWithNote={() => setPendingStatus("wishlist")} note={personalNotes || note} className="flex-1" />
                   ))}
                 </div>
                 <div className="flex justify-center gap-2">
                   {visibleStatuses.slice(3).map(({ value, label }) => (
-                    <StatusButton key={value} value={value} label={label} current={status} onSelect={setStatus} onWishlistWithNote={() => setPendingStatus("wishlist")} note={note} className="w-32" />
+                    <StatusButton key={value} value={value} label={label} current={status} onSelect={setStatus} onWishlistWithNote={() => setPendingStatus("wishlist")} note={personalNotes || note} className="w-32" />
                   ))}
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Personal Notes — private, shown for all statuses except Wishlist */}
+          <div className={`overflow-hidden transition-all duration-200 ${showPersonalNotes ? "max-h-64 opacity-100" : "max-h-0 opacity-0"}`}>
+            <label htmlFor="personal-notes" className="mb-1 block text-xs font-medium uppercase tracking-wider text-zinc-500">
+              Personal Notes
+            </label>
+            <p className="mb-2 text-xs text-zinc-600">Only visible to you</p>
+            <textarea
+              id="personal-notes"
+              value={personalNotes}
+              onChange={(e) => setPersonalNotes(e.target.value)}
+              maxLength={5000}
+              rows={3}
+              placeholder={
+                status === "playing" ? "What are you thinking so far?" :
+                status === "played"  ? "Any thoughts to remember?" :
+                status === "dropped" ? "Why did you stop? Worth revisiting?" :
+                "When do you want to play this? Any context?"
+              }
+              className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
           </div>
 
           {/* Rating (optional) — shown for Playing and Completed only */}
@@ -462,13 +486,13 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
             <StarPicker value={rating} onChange={setRating} />
           </div>
 
-          {/* Diary note (optional) — hidden for Wishlist */}
+          {/* Write a Review (optional) — shown for Playing and Completed only */}
           <div className={`overflow-hidden transition-all duration-200 ${showNotes ? "max-h-64 opacity-100" : "max-h-0 opacity-0"}`}>
             <label
               htmlFor="log-note"
               className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500"
             >
-              Notes <span className="normal-case text-zinc-600">(optional)</span>
+              Write a Review <span className="normal-case text-zinc-600">(optional)</span>
             </label>
             <textarea
               id="log-note"
@@ -512,6 +536,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
                   type="button"
                   onClick={() => {
                     setStatus(pendingStatus);
+                    setPersonalNotes("");
                     setNote("");
                     setRating(0);
                     setIsSpoiler(false);
