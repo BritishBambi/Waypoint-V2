@@ -383,20 +383,22 @@ export default async function Home({
     const displayName = profile?.display_name ?? username;
     const feed        = (rawFeed ?? []) as unknown as FeedItem[];
     const isFollowingNobody = followedIds.length === 0;
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const sevenDaysAgo    = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const allLists        = (recentListsRes.data ?? []) as unknown as RecentListItem[];
     const listsWithEntries = allLists.filter((l) => l.list_entries.length > 0);
-    const recentLists     = listsWithEntries.slice(0, 2);
-    const recentListIds   = new Set(recentLists.map((l) => l.id));
     const trendingLists   = listsWithEntries
       .map((l) => ({
         list: l,
         recentLikes: l.list_likes.filter((lk) => lk.created_at >= sevenDaysAgo).length,
       }))
-      .filter(({ list, recentLikes }) => recentLikes > 0 && !recentListIds.has(list.id))
+      .filter(({ recentLikes }) => recentLikes > 0)
       .sort((a, b) => b.recentLikes - a.recentLikes)
       .slice(0, 2)
       .map(({ list }) => list);
+    const trendingListIds = new Set(trendingLists.map((l) => l.id));
+    const recentLists     = listsWithEntries
+      .filter((l) => !trendingListIds.has(l.id))
+      .slice(0, 2);
 
     const showWelcome = searchParams.welcome === "1";
 
