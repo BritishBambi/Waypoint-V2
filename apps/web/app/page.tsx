@@ -13,6 +13,7 @@ import { PopularCarousel } from "./PopularCarousel";
 import { UpcomingCarousel } from "./UpcomingCarousel";
 import { WelcomeToast } from "@/components/WelcomeToast";
 import { WhoToFollowWidget, type SuggestedUser } from "./WhoToFollowWidget";
+import { ChangelogModal } from "@/components/ChangelogModal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -396,6 +397,7 @@ export default async function Home({
     return (
       <main className="mx-auto max-w-6xl px-4 py-10">
         {showWelcome && <WelcomeToast displayName={displayName} />}
+        <ChangelogModal />
 
         {/* ── Welcome Banner ───────────────────────────────────────────────── */}
         <section
