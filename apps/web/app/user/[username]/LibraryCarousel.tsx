@@ -73,9 +73,9 @@ export function LibraryCarousel({ items }: { items: LibraryItem[] }) {
           className="grid grid-flow-col gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           style={{ gridAutoColumns: "minmax(110px, 1fr)" }}
         >
-          {items.map(({ id, status, games, reviews = [] }) => {
+          {items.map(({ id, status, games, reviews }) => {
             if (!games) return null;
-            const review = reviews[0] ?? null;
+            const review = (reviews ?? [])[0] ?? null;
             const rating = review?.rating ?? null;
             return (
               <div key={id} className="group flex flex-col gap-1.5">

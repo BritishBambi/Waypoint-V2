@@ -116,9 +116,9 @@ export default async function LibraryPage({ params }: Props) {
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-          {logs.map(({ id, status, games, reviews = [] }) => {
+          {logs.map(({ id, status, games, reviews }) => {
             if (!games) return null;
-            const review = reviews[0] ?? null;
+            const review = (reviews ?? [])[0] ?? null;
             const rating = review?.rating ?? null;
             return (
               <div key={id} className="group flex flex-col gap-1.5">
