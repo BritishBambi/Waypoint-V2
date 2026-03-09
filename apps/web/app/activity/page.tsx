@@ -44,6 +44,7 @@ export default async function ActivityPage() {
         )
         .in("user_id", followedIds)
         .neq("user_id", user.id)
+        .in("status", ["playing", "played", "dropped"])
         .order("updated_at", { ascending: false })
         .limit(PAGE_SIZE),
 
@@ -51,7 +52,8 @@ export default async function ActivityPage() {
         .from("game_logs")
         .select("*", { count: "exact", head: true })
         .in("user_id", followedIds)
-        .neq("user_id", user.id),
+        .neq("user_id", user.id)
+        .in("status", ["playing", "played", "dropped"]),
     ]);
 
     initialItems = (feedRes.data ?? []) as unknown as FeedItem[];

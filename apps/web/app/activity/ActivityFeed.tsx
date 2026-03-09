@@ -84,6 +84,7 @@ export function ActivityFeed({ initialItems, followedIds, userId, totalCount }: 
       )
       .in("user_id", followedIds)
       .neq("user_id", userId)
+      .in("status", ["playing", "played", "dropped"])
       .order("updated_at", { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);
 

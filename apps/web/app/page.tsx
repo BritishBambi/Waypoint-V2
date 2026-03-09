@@ -119,10 +119,10 @@ export default async function Home({
 
     // Phase 1: profile, follows, recent public lists, IGDB popular games, and upcoming games (all parallel).
     // igdb-popular is tried first; Waypoint game_logs is used only as a fallback.
-    const [profileRes, followRes, recentListsRes, igdbPopularGames, igdbUpcomingGames] = await Promise.all([
+    const [profileRes, followRes, recentListsRes, igdbPopularGames, igdbUpcomingGames, gamesCountRes, currentlyPlayingRes] = await Promise.all([
       supabase
         .from("profiles")
-        .select("username, display_name")
+        .select("username, display_name, avatar_url")
         .eq("id", user.id)
         .single(),
 
@@ -177,12 +177,32 @@ export default async function Home({
           return (data.results as UpcomingGame[]) ?? null;
         })
         .catch(() => null),
+
+      // Total games logged across all active statuses.
+      supabase
+        .from("game_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .in("status", ["playing", "played", "dropped", "backlog"]),
+
+      // Most-recently updated game currently being played.
+      supabase
+        .from("game_logs")
+        .select("updated_at, games(slug, title, cover_url)")
+        .eq("user_id", user.id)
+        .eq("status", "playing")
+        .order("updated_at", { ascending: false })
+        .limit(1),
     ]);
 
-    const profile     = profileRes.data as { username: string; display_name: string | null } | null;
+    const profile     = profileRes.data as { username: string; display_name: string | null; avatar_url: string | null } | null;
     const followRows  = followRes.data as Array<{ followee_id: string }> | null;
     const followedIds = (followRows ?? []).map((r) => r.followee_id);
     const upcomingGames: UpcomingGame[] = igdbUpcomingGames ?? [];
+    const gamesLoggedCount = gamesCountRes.count ?? 0;
+    type CurrentlyPlayingRow = { games: { slug: string; title: string; cover_url: string | null } | null };
+    const currentlyPlayingRows = (currentlyPlayingRes.data ?? []) as unknown as CurrentlyPlayingRow[];
+    const currentlyPlaying = currentlyPlayingRows[0]?.games ?? null;
 
     // ── Who to Follow (runs in parallel with Phase 2 feed below) ─────────────
     // Closure captures supabase, user, followedIds — all resolved from Phase 1.
@@ -356,6 +376,7 @@ export default async function Home({
                 "reviews!log_id(rating)"
             )
             .in("user_id", followedIds)
+            .in("status", ["playing", "played", "dropped"])
             .order("updated_at", { ascending: false })
             .limit(12)
         : Promise.resolve({ data: [] }),
@@ -376,32 +397,73 @@ export default async function Home({
       <main className="mx-auto max-w-6xl px-4 py-10">
         {showWelcome && <WelcomeToast displayName={displayName} />}
 
-        {/* ── Welcome bar ──────────────────────────────────────────────────── */}
-        <section className="mb-10">
-          <h1 className="text-2xl font-bold text-white">
-            Welcome back, {displayName}
-          </h1>
-          <Link
-            href="/search"
-            className="mt-4 flex w-full max-w-sm items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-500 transition-colors hover:border-zinc-500 hover:text-zinc-400"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-            What are you playing?
-          </Link>
+        {/* ── Welcome Banner ───────────────────────────────────────────────── */}
+        <section
+          className="mb-10 rounded-xl border border-white/5 px-6 py-5"
+          style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.15) 0%, rgba(13,13,26,0) 100%)" }}
+        >
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+            {/* Left: avatar + name + stats */}
+            <div className="flex items-center gap-4">
+              {profile?.avatar_url ? (
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-violet-500/50">
+                  <Image src={profile.avatar_url} alt={displayName} fill sizes="56px" className="object-cover" />
+                </div>
+              ) : (
+                <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white ring-2 ring-violet-500/50 ${avatarBg(username)}`}>
+                  {displayName.slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <h1 className="text-xl font-bold text-white">Welcome back, {displayName}</h1>
+                <p className="mt-1 text-sm text-zinc-500">
+                  {gamesLoggedCount} game{gamesLoggedCount !== 1 ? "s" : ""} logged
+                  {" · "}
+                  {followedIds.length} following
+                </p>
+              </div>
+            </div>
+
+            {/* Right: currently playing or log-a-game CTA */}
+            <div className="shrink-0">
+              {currentlyPlaying ? (
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">Currently Playing</p>
+                  <Link
+                    href={`/games/${currentlyPlaying.slug}`}
+                    className="group flex items-center gap-3"
+                  >
+                    <div className="relative h-[60px] w-10 shrink-0 overflow-hidden rounded bg-zinc-800">
+                      {currentlyPlaying.cover_url && (
+                        <Image
+                          src={igdbCover(currentlyPlaying.cover_url, "t_cover_small")!}
+                          alt={currentlyPlaying.title}
+                          fill
+                          sizes="40px"
+                          className="object-cover"
+                        />
+                      )}
+                    </div>
+                    <span className="max-w-[180px] font-medium text-white transition-colors group-hover:text-zinc-300 line-clamp-2">
+                      {currentlyPlaying.title}
+                    </span>
+                  </Link>
+                </div>
+              ) : (
+                <div>
+                  <p className="mb-2 text-xs text-zinc-500">What have you been playing?</p>
+                  <Link
+                    href="/search"
+                    className="inline-block rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-violet-500"
+                  >
+                    + Log a Game
+                  </Link>
+                </div>
+              )}
+            </div>
+
+          </div>
         </section>
 
         {/* ── Popular Right Now ─────────────────────────────────────────────── */}
