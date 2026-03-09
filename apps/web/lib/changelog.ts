@@ -29,9 +29,10 @@ export const CHANGELOGS: ChangelogEntry[] = [
       {
         heading: "New Features",
         items: [
-          "Emoji reactions on reviews — 👍 ❤️ 🔥 🤡 😂 🎉",
+          "Fuck my chud life",
+          "Emoji reactions on reviews: 👍 ❤️ 🔥 🤡 😂 🎉",
           "Comment replies with @ mentions",
-          "Backlog status — separate your owned games from your wishlist",
+          "Backlog status, separate your owned games from your wishlist",
           "Wishlist now has its own section and page on profiles",
           "Coming Soon carousel on the homepage",
           "Who to Follow suggestions on the homepage",
@@ -46,11 +47,11 @@ export const CHANGELOGS: ChangelogEntry[] = [
         heading: "Improvements",
         items: [
           "Played renamed to Completed",
-          "Log modal adapts to status — no rating fields on Wishlist or Backlog",
+          "Log modal adapts to status, no rating fields on Wishlist or Backlog",
           "Unreleased games only show Wishlist as a status option",
           "Wishlist and Backlog entries hidden from friend activity feeds",
           "Review edit button moved to bottom left of cards",
-          "Profile stats bar cleaned up — followers and following aligned right",
+          "Profile stats bar cleaned up: followers and following aligned to the right",
           "Welcome banner on the logged-in homepage with currently playing game",
         ],
       },
