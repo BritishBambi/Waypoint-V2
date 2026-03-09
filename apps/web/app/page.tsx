@@ -43,12 +43,6 @@ type FeedItem = {
   reviews: { rating: number | null } | null;
 };
 
-type OwnLog = {
-  id: string;
-  status: string;
-  games: GameStub | null;
-};
-
 export type UpcomingGame = {
   id: number;
   slug: string;
@@ -457,7 +451,7 @@ export default async function Home({
                     <div className="relative h-[60px] w-10 shrink-0 overflow-hidden rounded bg-zinc-800">
                       {currentlyPlaying.cover_url && (
                         <Image
-                          src={igdbCover(currentlyPlaying.cover_url, "t_cover_small")!}
+                          src={igdbCover(currentlyPlaying.cover_url, "t_cover_big")!}
                           alt={currentlyPlaying.title}
                           fill
                           sizes="40px"
