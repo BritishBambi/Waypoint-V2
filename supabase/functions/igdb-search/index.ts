@@ -18,6 +18,7 @@ interface IgdbGame {
   first_release_date?: number; // Unix seconds
   rating?: number;        // 0–100 float
   rating_count?: number;  // number of ratings — used for popularity sort
+  external_games?: Array<{ category: number; uid: string }>;
   // NOTE: IGDB never returns `category` in search or where-based responses —
   // the field is always absent regardless of the game's actual category value.
   // Use `version_parent` (editions) and `parent_game` (DLC/expansions) instead.
@@ -69,6 +70,9 @@ function transformGame(game: IgdbGame) {
       ? Math.min(parseFloat(game.rating.toFixed(2)), 99.99)
       : null;
 
+  const steamEntry = game.external_games?.find((eg) => eg.category === 1);
+  const steam_app_id = steamEntry ? parseInt(steamEntry.uid, 10) : null;
+
   return {
     id: game.id,
     slug: game.slug,
@@ -81,6 +85,7 @@ function transformGame(game: IgdbGame) {
       ? new Date(game.first_release_date * 1000).toISOString().split("T")[0]
       : null,
     igdb_rating: igdbRating,
+    steam_app_id,
   };
 }
 
@@ -147,7 +152,7 @@ Deno.serve(async (req) => {
   // IGDB's `search` + `where` combination is unreliable in Apicalypse —
   // filtering is applied in TypeScript below instead.
   const apicalypseBody =
-    `fields name,slug,cover.url,summary,genres.name,platforms.name,first_release_date,rating,rating_count,category,version_parent,parent_game; ` +
+    `fields name,slug,cover.url,summary,genres.name,platforms.name,first_release_date,rating,rating_count,category,version_parent,parent_game,external_games.category,external_games.uid; ` +
     `search "${safeQuery}"; ` +
     `limit 30;`;
 
@@ -232,7 +237,7 @@ Deno.serve(async (req) => {
         },
         body:
           `fields name,slug,cover.url,summary,genres.name,platforms.name,` +
-          `first_release_date,rating,rating_count,parent_game,version_parent; ` +
+          `first_release_date,rating,rating_count,parent_game,version_parent,external_games.category,external_games.uid; ` +
           `where id = (${toFetch.join(",")}); limit ${toFetch.length};`,
       });
       if (fetchRes.ok) {

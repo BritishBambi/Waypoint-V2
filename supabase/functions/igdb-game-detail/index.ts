@@ -38,6 +38,7 @@ interface IgdbGame {
     developer: boolean;
     publisher: boolean;
   }>;
+  external_games?: Array<{ category: number; uid: string }>;
 }
 
 interface IgdbDlc {
@@ -118,6 +119,9 @@ function transformGame(game: IgdbGame) {
   const publisher =
     game.involved_companies?.find((c) => c.publisher)?.company?.name ?? null;
 
+  const steamEntry = game.external_games?.find((eg) => eg.category === 1);
+  const steam_app_id = steamEntry ? parseInt(steamEntry.uid, 10) : null;
+
   return {
     id: game.id,
     slug: game.slug,
@@ -130,6 +134,7 @@ function transformGame(game: IgdbGame) {
       ? new Date(game.first_release_date * 1000).toISOString().split("T")[0]
       : null,
     igdb_rating: igdbRating,
+    steam_app_id,
     // These fields are not in the games schema — returned for the UI only, not stored.
     rating_count: game.rating_count ?? null,
     banner_url,
@@ -206,7 +211,8 @@ Deno.serve(async (req) => {
     `dlcs,expansions,standalone_expansions,` +
     `artworks.url,artworks.width,artworks.height,` +
     `screenshots.url,screenshots.width,screenshots.height,` +
-    `involved_companies.company.name,involved_companies.developer,involved_companies.publisher; ` +
+    `involved_companies.company.name,involved_companies.developer,involved_companies.publisher,` +
+    `external_games.category,external_games.uid; ` +
     `limit 1;`;
 
   let igdbRes: Response;
