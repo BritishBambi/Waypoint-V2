@@ -707,6 +707,7 @@ export type Database = {
           id: string
           name: string
           slug: string
+          steam_app_id: number | null
         }
         Insert: {
           color?: string
@@ -717,6 +718,7 @@ export type Database = {
           id?: string
           name: string
           slug: string
+          steam_app_id?: number | null
         }
         Update: {
           color?: string
@@ -727,6 +729,7 @@ export type Database = {
           id?: string
           name?: string
           slug?: string
+          steam_app_id?: number | null
         }
         Relationships: [
           {
