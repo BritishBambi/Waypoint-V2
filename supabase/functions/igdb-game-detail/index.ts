@@ -121,6 +121,7 @@ function transformGame(game: IgdbGame) {
 
   const steamEntry = game.external_games?.find((eg) => eg.category === 1);
   const steam_app_id = steamEntry ? parseInt(steamEntry.uid, 10) : null;
+  console.log("[igdb-game-detail] steam_app_id extracted:", steam_app_id);
 
   return {
     id: game.id,
@@ -244,6 +245,10 @@ Deno.serve(async (req) => {
   }
 
   const rawGame = games[0];
+  console.log(
+    "[igdb-game-detail] external_games:",
+    JSON.stringify(rawGame.external_games ?? "MISSING")
+  );
   const game = transformGame(rawGame);
 
   const _debug = {
