@@ -427,12 +427,6 @@ export default async function GameDetailPage({ params }: Props) {
                 {formatPlaytime(steamData.playtime_minutes)} on Steam
               </span>
 
-              {/* Achievement count */}
-              {steamData.achievements_total > 0 && (
-                <span className="flex items-center gap-1.5">
-                  🏆 {steamData.achievements_unlocked} / {steamData.achievements_total} achievements
-                </span>
-              )}
             </div>
 
             {/* Achievement progress bar */}

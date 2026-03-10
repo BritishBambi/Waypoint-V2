@@ -27,10 +27,18 @@ export function AchievementSection({ achievements, unlocked, total }: Props) {
 
   return (
     <>
+      {/* Trophy + count — click to open modal */}
+      <button
+        onClick={() => setModalOpen(true)}
+        className="mt-3 flex items-center gap-1.5 text-sm text-white/60 cursor-pointer hover:text-white/80 transition-colors"
+      >
+        🏆 <span>{unlocked} / {total} achievements</span>
+      </button>
+
       {/* Icon preview row */}
-      <div className="mt-3">
+      <div className="mt-2">
         <div
-          className="flex gap-1.5 flex-wrap max-h-[52px] overflow-y-hidden cursor-pointer"
+          className="flex gap-1.5 flex-wrap max-h-[68px] overflow-y-hidden cursor-pointer"
           onClick={() => setModalOpen(true)}
         >
           {achievements.slice(0, 20).map((ach) => (
@@ -40,18 +48,23 @@ export function AchievementSection({ achievements, unlocked, total }: Props) {
               src={ach.unlocked ? ach.icon_url : ach.icon_gray_url}
               alt={ach.name}
               title={ach.name}
-              width={32}
-              height={32}
-              className={`w-8 h-8 rounded-sm${!ach.unlocked ? " opacity-40" : ""}`}
+              width={64}
+              height={64}
+              className={`w-16 h-16 rounded-sm${!ach.unlocked ? " opacity-40" : ""}`}
             />
           ))}
           {achievements.length > 20 && (
-            <div className="w-8 h-8 rounded-sm bg-white/10 flex items-center justify-center text-xs text-white/50">
+            <div className="w-16 h-16 rounded-sm bg-white/10 flex items-center justify-center text-sm text-white/50">
               +{achievements.length - 20}
             </div>
           )}
         </div>
-        <p className="text-xs text-white/40 mt-1.5">Click to view all achievements</p>
+        <p
+          className="text-xs text-white/40 mt-1.5 cursor-pointer hover:text-white/60 transition-colors"
+          onClick={() => setModalOpen(true)}
+        >
+          Click to view all achievements
+        </p>
       </div>
 
       {/* Modal */}
