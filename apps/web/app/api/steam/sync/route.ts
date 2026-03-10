@@ -8,17 +8,15 @@ export async function POST() {
   try {
     const supabase = await createClient();
 
-    const { data: { session } } = await supabase.auth.getSession();
-    console.log('session present:', !!session);
-    console.log('access token preview:', session?.access_token?.slice(0, 20) + '...');
-    console.log('full authorization header:', `Bearer ${session?.access_token?.slice(0, 20)}...`);
-    if (!session) {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    // Get fresh session after getUser() validates and refreshes it
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return Response.json({ error: "No session" }, { status: 401 });
     }
 
     // Get the user's steam_id from their profile.
