@@ -699,6 +699,7 @@ export type Database = {
       }
       titles: {
         Row: {
+          color: string
           created_at: string
           description: string
           game_id: number | null
@@ -708,6 +709,7 @@ export type Database = {
           slug: string
         }
         Insert: {
+          color?: string
           created_at?: string
           description: string
           game_id?: number | null
@@ -717,6 +719,7 @@ export type Database = {
           slug: string
         }
         Update: {
+          color?: string
           created_at?: string
           description?: string
           game_id?: number | null
