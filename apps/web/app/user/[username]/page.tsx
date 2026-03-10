@@ -146,7 +146,7 @@ export default async function UserProfilePage({
     await Promise.all([
       supabase
         .from("game_logs")
-        .select("id, status, updated_at, games(id, slug, title, cover_url)")
+        .select("id, status, updated_at, notes, games(id, slug, title, cover_url)")
         .eq("user_id", profile.id)
         .neq("status", "wishlist")
         .order("updated_at", { ascending: false }),
@@ -610,7 +610,7 @@ export default async function UserProfilePage({
         {logs.length === 0 ? (
           <EmptyLibrary isOwnProfile={isOwnProfile} />
         ) : (
-          <LibraryCarousel items={logs} />
+          <LibraryCarousel items={logs} isOwnProfile={isOwnProfile} />
         )}
       </section>
 

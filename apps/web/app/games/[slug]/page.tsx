@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { igdbCover } from "@/lib/igdb";
 import { GameLogSection } from "./GameLogSection";
 import { ReviewSection } from "./ReviewSection";
+import { PersonalNoteSection } from "./PersonalNoteSection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -359,22 +360,14 @@ export default async function GameDetailPage({ params }: Props) {
       </section>
 
       {/* ── Personal Notes ───────────────────────────────────────────────────── */}
-      {userNotes && (
+      {userNotes && user && (
         <section className="mx-auto max-w-6xl px-4 pb-10">
-          <div className="max-w-prose rounded-xl border border-white/5 bg-white/[0.03] px-5 py-4">
-            <p className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wider text-white/40">
-              <span aria-hidden="true">📝</span>
-              My Notes
-            </p>
-            <p className="text-sm italic leading-relaxed text-white/70">
-              &ldquo;{userNotes}&rdquo;
-            </p>
-            {userNotesUpdatedAt && (
-              <p className="mt-1.5 text-xs text-white/30">
-                Last updated {formatRelativeDate(userNotesUpdatedAt)}
-              </p>
-            )}
-          </div>
+          <PersonalNoteSection
+            gameId={game.id}
+            userId={user.id}
+            initialNotes={userNotes}
+            initialUpdatedAt={userNotesUpdatedAt ?? new Date().toISOString()}
+          />
         </section>
       )}
 
@@ -408,20 +401,6 @@ export default async function GameDetailPage({ params }: Props) {
 }
 
 // ─── Small helpers ────────────────────────────────────────────────────────────
-
-function formatRelativeDate(iso: string): string {
-  const date = new Date(iso);
-  const diffMs = Date.now() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 1) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
-  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const d = date.getDate();
-  const suffix = [11, 12, 13].includes(d % 100) ? "th"
-    : d % 10 === 1 ? "st" : d % 10 === 2 ? "nd" : d % 10 === 3 ? "rd" : "th";
-  return `${MONTHS[date.getMonth()]} ${d}${suffix} ${date.getFullYear()}`;
-}
 
 function NoCoverPlaceholder() {
   return (

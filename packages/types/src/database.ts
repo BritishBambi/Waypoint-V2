@@ -143,6 +143,7 @@ export type Database = {
           finished_at: string | null
           game_id: number
           id: string
+          notes: string | null
           started_at: string | null
           status: string
           updated_at: string
@@ -153,6 +154,7 @@ export type Database = {
           finished_at?: string | null
           game_id: number
           id?: string
+          notes?: string | null
           started_at?: string | null
           status: string
           updated_at?: string
@@ -163,6 +165,7 @@ export type Database = {
           finished_at?: string | null
           game_id?: number
           id?: string
+          notes?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
@@ -342,30 +345,36 @@ export type Database = {
       }
       notifications: {
         Row: {
-          actor_id: string
+          actor_id: string | null
           comment_id: string | null
           created_at: string
+          emoji: string | null
           id: string
+          list_id: string | null
           read: boolean
           review_id: string | null
           type: Database["public"]["Enums"]["notification_type"]
           user_id: string
         }
         Insert: {
-          actor_id: string
+          actor_id?: string | null
           comment_id?: string | null
           created_at?: string
+          emoji?: string | null
           id?: string
+          list_id?: string | null
           read?: boolean
           review_id?: string | null
           type: Database["public"]["Enums"]["notification_type"]
           user_id: string
         }
         Update: {
-          actor_id?: string
+          actor_id?: string | null
           comment_id?: string | null
           created_at?: string
+          emoji?: string | null
           id?: string
+          list_id?: string | null
           read?: boolean
           review_id?: string | null
           type?: Database["public"]["Enums"]["notification_type"]
@@ -377,6 +386,13 @@ export type Database = {
             columns: ["comment_id"]
             isOneToOne: false
             referencedRelation: "review_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
             referencedColumns: ["id"]
           },
           {
@@ -394,8 +410,12 @@ export type Database = {
           bio: string | null
           created_at: string
           display_name: string | null
+          featured_review_id: string | null
           id: string
           is_private: boolean
+          showcase_list_1_id: string | null
+          showcase_list_2_id: string | null
+          showcase_type: string | null
           updated_at: string
           username: string
           website: string | null
@@ -405,8 +425,12 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          featured_review_id?: string | null
           id: string
           is_private?: boolean
+          showcase_list_1_id?: string | null
+          showcase_list_2_id?: string | null
+          showcase_type?: string | null
           updated_at?: string
           username: string
           website?: string | null
@@ -416,19 +440,46 @@ export type Database = {
           bio?: string | null
           created_at?: string
           display_name?: string | null
+          featured_review_id?: string | null
           id?: string
           is_private?: boolean
+          showcase_list_1_id?: string | null
+          showcase_list_2_id?: string | null
+          showcase_type?: string | null
           updated_at?: string
           username?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_featured_review_id_fkey"
+            columns: ["featured_review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_showcase_list_1_id_fkey"
+            columns: ["showcase_list_1_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_showcase_list_2_id_fkey"
+            columns: ["showcase_list_2_id"]
+            isOneToOne: false
+            referencedRelation: "lists"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       review_comments: {
         Row: {
           body: string
           created_at: string
           id: string
+          reply_to_id: string | null
           review_id: string
           user_id: string
         }
@@ -436,6 +487,7 @@ export type Database = {
           body: string
           created_at?: string
           id?: string
+          reply_to_id?: string | null
           review_id: string
           user_id: string
         }
@@ -443,10 +495,18 @@ export type Database = {
           body?: string
           created_at?: string
           id?: string
+          reply_to_id?: string | null
           review_id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "review_comments_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "review_comments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "review_comments_review_id_fkey"
             columns: ["review_id"]
@@ -492,6 +552,45 @@ export type Database = {
           },
           {
             foreignKeyName: "review_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          id: string
+          review_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          id?: string
+          review_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          id?: string
+          review_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_reactions_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_reactions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -577,7 +676,14 @@ export type Database = {
       }
     }
     Enums: {
-      notification_type: "follow" | "review_like" | "review_comment"
+      notification_type:
+        | "follow"
+        | "review_like"
+        | "review_comment"
+        | "welcome"
+        | "review_reaction"
+        | "list_like"
+        | "comment_reply"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -705,7 +811,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      notification_type: ["follow", "review_like", "review_comment"],
+      notification_type: [
+        "follow",
+        "review_like",
+        "review_comment",
+        "welcome",
+        "review_reaction",
+        "list_like",
+        "comment_reply",
+      ],
     },
   },
 } as const

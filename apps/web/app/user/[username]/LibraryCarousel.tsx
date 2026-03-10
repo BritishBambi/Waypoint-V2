@@ -15,6 +15,7 @@ import { formatStatus } from "@/lib/formatStatus";
 export type LibraryItem = {
   id: string;
   status: string;
+  notes?: string | null;
   games: {
     id: number;
     slug: string;
@@ -33,7 +34,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 
-export function LibraryCarousel({ items }: { items: LibraryItem[] }) {
+export function LibraryCarousel({ items, isOwnProfile = false }: { items: LibraryItem[]; isOwnProfile?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft]   = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -73,10 +74,11 @@ export function LibraryCarousel({ items }: { items: LibraryItem[] }) {
           className="grid grid-flow-col gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           style={{ gridAutoColumns: "minmax(110px, 1fr)" }}
         >
-          {items.map(({ id, status, games, reviews }) => {
+          {items.map(({ id, status, notes, games, reviews }) => {
             if (!games) return null;
-            const review = (reviews ?? [])[0] ?? null;
-            const rating = review?.rating ?? null;
+            const review   = (reviews ?? [])[0] ?? null;
+            const rating   = review?.rating ?? null;
+            const noteText = isOwnProfile ? (notes ?? null) : null;
             return (
               <div key={id} className="group flex flex-col gap-1.5">
 
@@ -122,6 +124,27 @@ export function LibraryCarousel({ items }: { items: LibraryItem[] }) {
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
                     </Link>
+                  )}
+
+                  {/* Note indicator — bottom left, only when no review */}
+                  {!review && noteText && (
+                    <div className="group/note absolute bottom-1.5 left-1.5 z-10">
+                      <div className="flex items-center justify-center rounded-full bg-black/60 p-1 backdrop-blur-sm">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="16" y1="13" x2="8" y2="13" />
+                          <line x1="16" y1="17" x2="8" y2="17" />
+                        </svg>
+                      </div>
+                      {/* Hover tooltip — desktop only */}
+                      <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 hidden -translate-x-1/2 opacity-0 transition-opacity duration-150 group-hover/note:opacity-100 sm:block">
+                        <div className="max-w-[200px] rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs leading-relaxed text-zinc-300 shadow-lg whitespace-normal">
+                          {noteText.length > 80 ? noteText.slice(0, 80) + "…" : noteText}
+                        </div>
+                        <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-zinc-700" />
+                      </div>
+                    </div>
                   )}
                 </div>
 

@@ -43,6 +43,9 @@ export default async function LibraryPage({ params }: Props) {
 
   if (!profile) notFound();
 
+  const { data: { user } } = await supabase.auth.getUser();
+  const isOwnLibrary = user?.id === profile.id;
+
   // Fetch library logs (excludes wishlist — wishlist has its own page).
   const { data: rawLogs } = await supabase
     .from("game_logs")
@@ -103,7 +106,7 @@ export default async function LibraryPage({ params }: Props) {
           No games logged yet.
         </p>
       ) : (
-        <LibraryGrid logs={logs} />
+        <LibraryGrid logs={logs} isOwnLibrary={isOwnLibrary} userId={user?.id ?? null} />
       )}
 
     </main>
