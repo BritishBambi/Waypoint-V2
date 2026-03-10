@@ -38,15 +38,11 @@ export async function POST() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const anonKey     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-    console.log('anon key present:', !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-    console.log('headers being sent:', {
-      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 10) + '...',
-    });
+    const fetchUrl = `${supabaseUrl}/functions/v1/steam-sync?apikey=${anonKey}`;
 
-    const syncRes = await fetch(`${supabaseUrl}/functions/v1/steam-sync`, {
+    const syncRes = await fetch(fetchUrl, {
       method: "POST",
       headers: {
-        "apikey":        anonKey,
         "Authorization": `Bearer ${session.access_token}`,
         "Content-Type":  "application/json",
       },
