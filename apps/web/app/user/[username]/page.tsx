@@ -36,6 +36,7 @@ type LogWithGame = {
   id: string;
   status: string;
   updated_at: string;
+  notes: string | null;
   games: GameStub | null;
   reviews: Array<{ id: string; rating: number | null }>;
 };
