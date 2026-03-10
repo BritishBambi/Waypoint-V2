@@ -81,6 +81,38 @@ async function getAccessToken(
   return tokenCache.token;
 }
 
+// ─── Steam validation ─────────────────────────────────────────────────────────
+
+async function validateSteamAppId(appId: number): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=basic`,
+      { headers: { "User-Agent": "Waypoint/1.0" } }
+    );
+    if (res.status === 429) {
+      console.warn("[igdb-game-detail] Steam API rate limited for:", appId);
+      return false;
+    }
+    if (!res.ok) return false;
+    const data = await res.json();
+    const appData = data[String(appId)];
+    if (!appData?.success) return false;
+    const type = appData?.data?.type;
+    return type === "game" || type === "demo";
+  } catch {
+    return false;
+  }
+}
+
+function extractSteamCandidates(externalGames: Array<{ uid: string }> | undefined): number[] {
+  return (externalGames ?? [])
+    .map((eg) => {
+      const num = parseInt(eg.uid, 10);
+      return (!isNaN(num) && num >= 100 && num < 2100000 && eg.uid === String(num)) ? num : null;
+    })
+    .filter((n): n is number => n !== null);
+}
+
 // ─── Transform ────────────────────────────────────────────────────────────────
 
 function transformGame(game: IgdbGame) {
@@ -119,12 +151,8 @@ function transformGame(game: IgdbGame) {
   const publisher =
     game.involved_companies?.find((c) => c.publisher)?.company?.name ?? null;
 
-  const steamEntry = game.external_games?.find((eg) => {
-    const num = parseInt(eg.uid, 10);
-    return !isNaN(num) && num >= 100 && num < 2100000 && eg.uid === String(num);
-  });
-  const steam_app_id = steamEntry ? parseInt(steamEntry.uid, 10) : null;
-  console.log("[igdb-game-detail] steam_app_id extracted:", steam_app_id);
+  // steam_app_id is resolved asynchronously outside this function
+  const steam_app_id: number | null = null;
 
   return {
     id: game.id,
@@ -252,7 +280,40 @@ Deno.serve(async (req) => {
     "[igdb-game-detail] external_games:",
     JSON.stringify(rawGame.external_games ?? "MISSING")
   );
-  const game = transformGame(rawGame);
+
+  // ── Validate Steam AppID ──────────────────────────────────────────────────
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  let validatedSteamAppId: number | null = null;
+
+  if (supabaseUrl && serviceRoleKey) {
+    const adminCheck = createClient(supabaseUrl, serviceRoleKey);
+    const { data: existingRaw } = await adminCheck
+      .from("games")
+      .select("steam_app_id")
+      .eq("id", rawGame.id)
+      .maybeSingle();
+    const existing = existingRaw as { steam_app_id: number | null } | null;
+    if (existing?.steam_app_id) {
+      validatedSteamAppId = existing.steam_app_id;
+    } else {
+      const candidates = extractSteamCandidates(rawGame.external_games);
+      for (const candidate of candidates) {
+        const isValid = await validateSteamAppId(candidate);
+        if (isValid) {
+          validatedSteamAppId = candidate;
+          break;
+        }
+      }
+    }
+  }
+
+  console.log(
+    "[igdb-game-detail] steam_app_id:", validatedSteamAppId,
+    "candidates:", extractSteamCandidates(rawGame.external_games)
+  );
+
+  const game = { ...transformGame(rawGame), steam_app_id: validatedSteamAppId };
 
   const _debug = {
     artworks: rawGame.artworks?.map(a => ({

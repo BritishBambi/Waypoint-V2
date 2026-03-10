@@ -27,6 +27,38 @@ interface IgdbGame {
   parent_game?: number;    // set on DLC/expansions — null on standalone base games
 }
 
+// ─── Steam validation ─────────────────────────────────────────────────────────
+
+async function validateSteamAppId(appId: number): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://store.steampowered.com/api/appdetails?appids=${appId}&filters=basic`,
+      { headers: { "User-Agent": "Waypoint/1.0" } }
+    );
+    if (res.status === 429) {
+      console.warn("[igdb-search] Steam API rate limited for:", appId);
+      return false;
+    }
+    if (!res.ok) return false;
+    const data = await res.json();
+    const appData = data[String(appId)];
+    if (!appData?.success) return false;
+    const type = appData?.data?.type;
+    return type === "game" || type === "demo";
+  } catch {
+    return false;
+  }
+}
+
+function extractSteamCandidates(externalGames: Array<{ uid: string }> | undefined): number[] {
+  return (externalGames ?? [])
+    .map((eg) => {
+      const num = parseInt(eg.uid, 10);
+      return (!isNaN(num) && num >= 100 && num < 2100000 && eg.uid === String(num)) ? num : null;
+    })
+    .filter((n): n is number => n !== null);
+}
+
 // Module-level cache — persists for the lifetime of the function instance.
 let tokenCache: TokenCache | null = null;
 
@@ -70,11 +102,8 @@ function transformGame(game: IgdbGame) {
       ? Math.min(parseFloat(game.rating.toFixed(2)), 99.99)
       : null;
 
-  const steamEntry = game.external_games?.find((eg) => {
-    const num = parseInt(eg.uid, 10);
-    return !isNaN(num) && num >= 100 && num < 2100000 && eg.uid === String(num);
-  });
-  const steam_app_id = steamEntry ? parseInt(steamEntry.uid, 10) : null;
+  // steam_app_id is resolved asynchronously outside this function
+  const steam_app_id: number | null = null;
 
   return {
     id: game.id,
@@ -262,8 +291,8 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ── Step 3: Sort and transform ─────────────────────────────────────────────
-  const results = filtered
+  // ── Step 3: Sort, validate Steam AppIDs, and transform ─────────────────────
+  const sortedFiltered = filtered
     // Three-tier sort:
     //   1. Exact title match (e.g. "Minecraft" when query is "minecraft")
     //   2. Title starts with query (e.g. "Zelda: …" when query is "zelda")
@@ -281,8 +310,23 @@ Deno.serve(async (req) => {
       if (bStarts !== aStarts) return bStarts - aStarts;
       return (b.rating_count ?? 0) - (a.rating_count ?? 0);
     })
-    .slice(0, 20)
-    .map(transformGame);
+    .slice(0, 20);
+
+  const results = await Promise.all(
+    sortedFiltered.map(async (g) => {
+      const base = transformGame(g);
+      const candidates = extractSteamCandidates(g.external_games);
+      let steam_app_id: number | null = null;
+      for (const candidate of candidates) {
+        const isValid = await validateSteamAppId(candidate);
+        if (isValid) {
+          steam_app_id = candidate;
+          break;
+        }
+      }
+      return { ...base, steam_app_id };
+    })
+  );
 
   return json({ results });
 });
