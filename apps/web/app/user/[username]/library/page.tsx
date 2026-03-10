@@ -63,6 +63,27 @@ export default async function LibraryPage({ params }: Props) {
     return db.localeCompare(da);
   });
 
+  // Fetch Steam playtime for own library.
+  let steamPlaytime: Record<number, number> = {};
+  if (isOwnLibrary) {
+    const { data: rawProfile2 } = await supabase
+      .from("profiles")
+      .select("steam_id")
+      .eq("id", profile.id)
+      .maybeSingle();
+    if ((rawProfile2 as any)?.steam_id) {
+      const { data: steamRows } = await supabase
+        .from("user_steam_data")
+        .select("game_id, playtime_minutes")
+        .eq("user_id", profile.id);
+      for (const row of (steamRows ?? []) as Array<{ game_id: number | null; playtime_minutes: number }>) {
+        if (row.game_id != null && row.playtime_minutes > 0) {
+          steamPlaytime[row.game_id] = row.playtime_minutes;
+        }
+      }
+    }
+  }
+
   const displayName = profile.display_name ?? profile.username;
 
   return (
@@ -106,7 +127,7 @@ export default async function LibraryPage({ params }: Props) {
           No games logged yet.
         </p>
       ) : (
-        <LibraryGrid logs={logs} isOwnLibrary={isOwnLibrary} userId={user?.id ?? null} />
+        <LibraryGrid logs={logs} isOwnLibrary={isOwnLibrary} userId={user?.id ?? null} steamPlaytime={steamPlaytime} />
       )}
 
     </main>

@@ -323,7 +323,21 @@ export default async function UserProfilePage({
     isFollowing = !!followRow;
   }
 
-  // ── 5. Spoiler auto-reveal ───────────────────────────────────────────────────
+  // ── 5. Steam playtime map (own profile only) ────────────────────────────────
+  let steamPlaytime: Record<number, number> = {};
+  if (isOwnProfile && (profile as any).steam_id) {
+    const { data: steamRows } = await supabase
+      .from("user_steam_data")
+      .select("game_id, playtime_minutes")
+      .eq("user_id", profile.id);
+    for (const row of (steamRows ?? []) as Array<{ game_id: number | null; playtime_minutes: number }>) {
+      if (row.game_id != null && row.playtime_minutes > 0) {
+        steamPlaytime[row.game_id] = row.playtime_minutes;
+      }
+    }
+  }
+
+  // ── 6. Spoiler auto-reveal ───────────────────────────────────────────────────
   // Fetch the viewer's played games + their own reviews so we can auto-reveal
   // spoilers for games they've already experienced. Skip entirely if the profile
   // has no spoiler-tagged reviews (avoids two unnecessary DB calls).
@@ -349,7 +363,7 @@ export default async function UserProfilePage({
     }
   }
 
-  // ── 6. Render ───────────────────────────────────────────────────────────────
+  // ── 7. Render ───────────────────────────────────────────────────────────────
   return (
     <main className="mx-auto max-w-6xl px-4 py-12">
 
@@ -621,7 +635,7 @@ export default async function UserProfilePage({
         {logs.length === 0 ? (
           <EmptyLibrary isOwnProfile={isOwnProfile} />
         ) : (
-          <LibraryCarousel items={logs} isOwnProfile={isOwnProfile} />
+          <LibraryCarousel items={logs} isOwnProfile={isOwnProfile} steamPlaytime={steamPlaytime} />
         )}
       </section>
 

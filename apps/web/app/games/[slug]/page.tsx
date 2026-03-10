@@ -13,6 +13,7 @@ import { igdbCover } from "@/lib/igdb";
 import { GameLogSection } from "./GameLogSection";
 import { ReviewSection } from "./ReviewSection";
 import { PersonalNoteSection } from "./PersonalNoteSection";
+import { formatPlaytime } from "@/lib/formatPlaytime";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -189,7 +190,35 @@ export default async function GameDetailPage({ params }: Props) {
     existingReview = (reviewRow as Pick<Tables<"reviews">, "id" | "rating" | "body"> | null) ?? null;
   }
 
-  // ── 3. Derived display values ───────────────────────────────────────────────
+  // ── 3. Steam data for the logged-in user (only if they have Steam connected) ─
+  type SteamData = {
+    playtime_minutes: number;
+    achievements_unlocked: number;
+    achievements_total: number;
+  } | null;
+
+  let steamData: SteamData = null;
+  if (user) {
+    // Check whether the user has Steam connected.
+    const { data: rawProfileRow } = await supabase
+      .from("profiles")
+      .select("steam_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    const hasSteam = !!(rawProfileRow as { steam_id: string | null } | null)?.steam_id;
+
+    if (hasSteam) {
+      const { data: rawSteam } = await supabase
+        .from("user_steam_data")
+        .select("playtime_minutes, achievements_unlocked, achievements_total")
+        .eq("user_id", user.id)
+        .eq("game_id", game.id)
+        .maybeSingle();
+      steamData = (rawSteam as SteamData) ?? null;
+    }
+  }
+
+  // ── 4. Derived display values ───────────────────────────────────────────────
   const year = game.release_date ? game.release_date.slice(0, 4) : null;
   const platforms = game.platforms?.slice(0, 4).join(" · ") ?? null;
   // Upgrade the stored cover URL to t_720p (~480×720) for crisp display.
@@ -368,6 +397,44 @@ export default async function GameDetailPage({ params }: Props) {
             initialNotes={userNotes}
             initialUpdatedAt={userNotesUpdatedAt ?? new Date().toISOString()}
           />
+        </section>
+      )}
+
+      {/* ── Steam playtime & achievements (own data only) ────────────────────── */}
+      {steamData && (steamData.playtime_minutes > 0) && (
+        <section className="mx-auto max-w-6xl px-4 pb-10">
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+            <div className="flex items-center gap-4 text-sm text-white/60">
+              {/* Clock icon + playtime */}
+              <span className="flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                </svg>
+                {formatPlaytime(steamData.playtime_minutes)} on Steam
+              </span>
+
+              {/* Achievement count */}
+              {steamData.achievements_total > 0 && (
+                <span className="flex items-center gap-1.5">
+                  🏆 {steamData.achievements_unlocked} / {steamData.achievements_total} achievements
+                </span>
+              )}
+            </div>
+
+            {/* Achievement progress bar */}
+            {steamData.achievements_total > 0 && (
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-1.5 rounded-full bg-violet-500 transition-all"
+                  style={{
+                    width: `${Math.round(
+                      (steamData.achievements_unlocked / steamData.achievements_total) * 100
+                    )}%`,
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </section>
       )}
 

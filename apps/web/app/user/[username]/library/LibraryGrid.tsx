@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { igdbCover } from "@/lib/igdb";
 import { formatStatus } from "@/lib/formatStatus";
+import { formatPlaytime } from "@/lib/formatPlaytime";
 import { toast } from "@/lib/toast";
 import type { LogWithGame } from "./page";
 
@@ -34,9 +35,10 @@ interface Props {
   logs: LogWithGame[];
   isOwnLibrary: boolean;
   userId: string | null;
+  steamPlaytime?: Record<number, number>;
 }
 
-export function LibraryGrid({ logs, isOwnLibrary, userId }: Props) {
+export function LibraryGrid({ logs, isOwnLibrary, userId, steamPlaytime }: Props) {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
@@ -148,6 +150,16 @@ export function LibraryGrid({ logs, isOwnLibrary, userId }: Props) {
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                       </svg>
                       <span className="text-[10px] font-medium text-yellow-400">{rating}</span>
+                    </div>
+                  )}
+
+                  {/* Playtime — bottom right (only when no rating) */}
+                  {rating == null && games && steamPlaytime?.[games.id] != null && steamPlaytime[games.id] > 0 && (
+                    <div className="pointer-events-none absolute bottom-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                      </svg>
+                      <span className="text-[10px] text-white/70">{formatPlaytime(steamPlaytime[games.id])}</span>
                     </div>
                   )}
 

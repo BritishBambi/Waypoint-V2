@@ -101,7 +101,25 @@ export async function GET(request: Request) {
     })
     .eq("id", user.id);
 
-  // ── 7. Redirect back to edit profile ─────────────────────────────────────────
+  // ── 7. Fire-and-forget Steam library sync ────────────────────────────────────
+  // Kick off a sync immediately after connecting — don't await so the redirect
+  // isn't delayed. The user's session token is needed by steam-sync to auth.
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const anonKey     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    fetch(`${supabaseUrl}/functions/v1/steam-sync`, {
+      method: "POST",
+      headers: {
+        "apikey":        anonKey,
+        "Authorization": `Bearer ${session.access_token}`,
+        "Content-Type":  "application/json",
+      },
+      body: JSON.stringify({ steam_id: steamId }),
+    }).catch(console.error);
+  }
+
+  // ── 8. Redirect back to edit profile ─────────────────────────────────────────
   // Append ?steam_private=1 if the user's Steam profile is not public so the
   // edit page can show a privacy warning without a second API round-trip.
   const isPrivate = player.communityvisibilitystate !== 3;

@@ -115,6 +115,7 @@ export function EditProfileForm({
   const [steamDisplayName, setSteamDisplayName] = useState<string | null>((profile as any).steam_display_name ?? null);
   const [steamAvatarUrl,   setSteamAvatarUrl]   = useState<string | null>((profile as any).steam_avatar_url   ?? null);
   const [disconnecting,    setDisconnecting]    = useState(false);
+  const [syncing,          setSyncing]          = useState(false);
 
   // ── UI state ─────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
@@ -275,6 +276,18 @@ export function EditProfileForm({
     next[modalTargetSlot] = { id: game.id, slug: game.slug, title: game.title, cover_url: game.cover_url };
     setSlots(next);
     closeModal();
+  }
+
+  async function handleSteamSync() {
+    setSyncing(true);
+    const res = await fetch("/api/steam/sync", { method: "POST" });
+    setSyncing(false);
+    if (res.ok) {
+      const { games_matched } = await res.json();
+      setToast(`Steam synced — ${games_matched} game${games_matched === 1 ? "" : "s"} matched`);
+    } else {
+      setToast("Steam sync failed. Try again later.");
+    }
   }
 
   async function handleSteamDisconnect() {
@@ -907,14 +920,24 @@ export function EditProfileForm({
               </div>
 
               {steamId ? (
-                <button
-                  type="button"
-                  onClick={handleSteamDisconnect}
-                  disabled={disconnecting}
-                  className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-300 disabled:opacity-50"
-                >
-                  {disconnecting ? "Disconnecting…" : "Disconnect"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSteamSync}
+                    disabled={syncing || disconnecting}
+                    className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-300 disabled:opacity-50"
+                  >
+                    {syncing ? "Syncing…" : "Sync Steam"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSteamDisconnect}
+                    disabled={disconnecting || syncing}
+                    className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-300 disabled:opacity-50"
+                  >
+                    {disconnecting ? "Disconnecting…" : "Disconnect"}
+                  </button>
+                </div>
               ) : (
                 <a
                   href="/auth/steam"
