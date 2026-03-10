@@ -38,7 +38,7 @@ interface IgdbGame {
     developer: boolean;
     publisher: boolean;
   }>;
-  external_games?: Array<{ category: number; uid: string }>;
+  external_games?: Array<{ uid: string }>;
 }
 
 interface IgdbDlc {
@@ -119,7 +119,10 @@ function transformGame(game: IgdbGame) {
   const publisher =
     game.involved_companies?.find((c) => c.publisher)?.company?.name ?? null;
 
-  const steamEntry = game.external_games?.find((eg) => eg.category === 1);
+  const steamEntry = game.external_games?.find((eg) => {
+    const num = parseInt(eg.uid, 10);
+    return !isNaN(num) && num > 100000 && num < 4000000 && eg.uid === String(num);
+  });
   const steam_app_id = steamEntry ? parseInt(steamEntry.uid, 10) : null;
   console.log("[igdb-game-detail] steam_app_id extracted:", steam_app_id);
 
@@ -213,7 +216,7 @@ Deno.serve(async (req) => {
     `artworks.url,artworks.width,artworks.height,` +
     `screenshots.url,screenshots.width,screenshots.height,` +
     `involved_companies.company.name,involved_companies.developer,involved_companies.publisher,` +
-    `external_games.category,external_games.uid; ` +
+    `external_games.uid; ` +
     `limit 1;`;
 
   let igdbRes: Response;
