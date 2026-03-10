@@ -198,6 +198,7 @@ export type Database = {
           platforms: string[] | null
           release_date: string | null
           slug: string
+          steam_app_id: number | null
           summary: string | null
           title: string
         }
@@ -210,6 +211,7 @@ export type Database = {
           platforms?: string[] | null
           release_date?: string | null
           slug: string
+          steam_app_id?: number | null
           summary?: string | null
           title: string
         }
@@ -222,6 +224,7 @@ export type Database = {
           platforms?: string[] | null
           release_date?: string | null
           slug?: string
+          steam_app_id?: number | null
           summary?: string | null
           title?: string
         }
@@ -416,6 +419,10 @@ export type Database = {
           showcase_list_1_id: string | null
           showcase_list_2_id: string | null
           showcase_type: string | null
+          steam_avatar_url: string | null
+          steam_connected_at: string | null
+          steam_display_name: string | null
+          steam_id: string | null
           updated_at: string
           username: string
           website: string | null
@@ -431,6 +438,10 @@ export type Database = {
           showcase_list_1_id?: string | null
           showcase_list_2_id?: string | null
           showcase_type?: string | null
+          steam_avatar_url?: string | null
+          steam_connected_at?: string | null
+          steam_display_name?: string | null
+          steam_id?: string | null
           updated_at?: string
           username: string
           website?: string | null
@@ -446,6 +457,10 @@ export type Database = {
           showcase_list_1_id?: string | null
           showcase_list_2_id?: string | null
           showcase_type?: string | null
+          steam_avatar_url?: string | null
+          steam_connected_at?: string | null
+          steam_display_name?: string | null
+          steam_id?: string | null
           updated_at?: string
           username?: string
           website?: string | null
@@ -655,6 +670,104 @@ export type Database = {
           },
           {
             foreignKeyName: "reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_steam_achievements: {
+        Row: {
+          achievement_api_name: string
+          description: string | null
+          global_percent: number | null
+          icon_gray_url: string
+          icon_url: string
+          id: string
+          name: string
+          steam_app_id: number
+          unlock_time: string | null
+          unlocked: boolean
+          user_id: string
+        }
+        Insert: {
+          achievement_api_name: string
+          description?: string | null
+          global_percent?: number | null
+          icon_gray_url: string
+          icon_url: string
+          id?: string
+          name: string
+          steam_app_id: number
+          unlock_time?: string | null
+          unlocked?: boolean
+          user_id: string
+        }
+        Update: {
+          achievement_api_name?: string
+          description?: string | null
+          global_percent?: number | null
+          icon_gray_url?: string
+          icon_url?: string
+          id?: string
+          name?: string
+          steam_app_id?: number
+          unlock_time?: string | null
+          unlocked?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_steam_achievements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_steam_data: {
+        Row: {
+          achievements_total: number
+          achievements_unlocked: number
+          game_id: number | null
+          id: string
+          last_synced_at: string | null
+          playtime_minutes: number
+          steam_app_id: number
+          user_id: string
+        }
+        Insert: {
+          achievements_total?: number
+          achievements_unlocked?: number
+          game_id?: number | null
+          id?: string
+          last_synced_at?: string | null
+          playtime_minutes?: number
+          steam_app_id: number
+          user_id: string
+        }
+        Update: {
+          achievements_total?: number
+          achievements_unlocked?: number
+          game_id?: number | null
+          id?: string
+          last_synced_at?: string | null
+          playtime_minutes?: number
+          steam_app_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_steam_data_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_steam_data_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"

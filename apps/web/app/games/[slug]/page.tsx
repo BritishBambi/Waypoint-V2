@@ -14,6 +14,7 @@ import { GameLogSection } from "./GameLogSection";
 import { ReviewSection } from "./ReviewSection";
 import { PersonalNoteSection } from "./PersonalNoteSection";
 import { formatPlaytime } from "@/lib/formatPlaytime";
+import { AchievementSection, type Achievement } from "@/components/AchievementSection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -216,6 +217,19 @@ export default async function GameDetailPage({ params }: Props) {
         .maybeSingle();
       steamData = (rawSteam as SteamData) ?? null;
     }
+  }
+
+  // ── 3b. Fetch individual achievement data for the modal ─────────────────────
+  let achievements: Achievement[] = [];
+  if (user && game.steam_app_id && steamData && steamData.playtime_minutes > 0) {
+    const { data: achData } = await (supabase as any)
+      .from("user_steam_achievements")
+      .select("achievement_api_name, name, description, icon_url, icon_gray_url, unlocked, unlock_time, global_percent")
+      .eq("user_id", user.id)
+      .eq("steam_app_id", game.steam_app_id)
+      .order("unlocked", { ascending: false })
+      .order("global_percent", { ascending: false });
+    achievements = (achData as Achievement[] | null) ?? [];
   }
 
   // ── 4. Derived display values ───────────────────────────────────────────────
@@ -433,6 +447,15 @@ export default async function GameDetailPage({ params }: Props) {
                   }}
                 />
               </div>
+            )}
+
+            {/* Achievement icon preview + modal */}
+            {achievements.length > 0 && (
+              <AchievementSection
+                achievements={achievements}
+                unlocked={steamData.achievements_unlocked}
+                total={steamData.achievements_total}
+              />
             )}
           </div>
         </section>

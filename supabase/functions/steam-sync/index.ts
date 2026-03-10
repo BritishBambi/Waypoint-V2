@@ -145,23 +145,77 @@ Deno.serve(async (req) => {
     // Only fetch achievements if the user has actually played the game.
     if (playtime > 0) {
       try {
-        const achRes = await fetch(
-          `https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/` +
-          `?key=${steamApiKey}&steamid=${steamId}&appid=${appid}`
-        );
-        if (achRes.ok) {
-          const achData = await achRes.json();
-          const achievements: Array<{ achieved: number }> =
+        const [achRes, schemaRes, globalRes] = await Promise.all([
+          fetch(
+            `https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/` +
+            `?key=${steamApiKey}&steamid=${steamId}&appid=${appid}&l=english`
+          ),
+          fetch(
+            `https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/` +
+            `?key=${steamApiKey}&appid=${appid}&l=english`
+          ),
+          fetch(
+            `https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/` +
+            `?gameid=${appid}`
+          ),
+        ]);
+
+        if (achRes.ok && schemaRes.ok) {
+          const achData    = await achRes.json();
+          const schemaData = await schemaRes.json();
+          const globalData = globalRes.ok ? await globalRes.json() : null;
+
+          const playerAchs: Array<{ apiname: string; achieved: number; unlocktime: number }> =
             achData?.playerstats?.achievements ?? [];
-          achievementsTotal    = achievements.length;
-          achievementsUnlocked = achievements.filter((a) => a.achieved === 1).length;
+          const schemaAchs: Array<{
+            name: string; displayName: string; description?: string; icon: string; icongray: string;
+          }> = schemaData?.game?.availableGameStats?.achievements ?? [];
+          const globalPcts: Array<{ name: string; percent: number }> =
+            globalData?.achievementpercentages?.achievements ?? [];
+
+          const schemaMap = new Map(schemaAchs.map((a) => [a.name, a]));
+          const globalMap = new Map(globalPcts.map((a) => [a.name, a.percent]));
+
+          achievementsTotal    = playerAchs.length;
+          achievementsUnlocked = playerAchs.filter((a) => a.achieved === 1).length;
+
+          const achievementRows = playerAchs
+            .map((pa) => {
+              const schema = schemaMap.get(pa.apiname);
+              if (!schema) return null;
+              return {
+                user_id:               userId,
+                steam_app_id:          appid,
+                achievement_api_name:  pa.apiname,
+                name:                  schema.displayName,
+                description:           schema.description ?? null,
+                icon_url:              schema.icon,
+                icon_gray_url:         schema.icongray,
+                unlocked:              pa.achieved === 1,
+                unlock_time:
+                  pa.achieved === 1 && pa.unlocktime > 0
+                    ? new Date(pa.unlocktime * 1000).toISOString()
+                    : null,
+                global_percent: globalMap.get(pa.apiname) ?? null,
+              };
+            })
+            .filter(Boolean);
+
+          if (achievementRows.length > 0) {
+            await admin
+              .from("user_steam_achievements")
+              .upsert(achievementRows, {
+                onConflict: "user_id,steam_app_id,achievement_api_name",
+              });
+          }
         }
-        // Non-200 = game has no achievements or private stats — silently skip.
-      } catch {
-        // Non-fatal — just leave achievements at 0/0.
+        // Non-200 on achRes = game has no achievements or private stats — silently skip.
+      } catch (e) {
+        console.error("[steam-sync] Achievement sync failed for appid:", appid, e);
+        // Non-fatal — continue with next game.
       }
 
-      // Respect Steam API rate limit (~1 req/s per key).
+      // Respect Steam API rate limit.
       await sleep(100);
     }
 
