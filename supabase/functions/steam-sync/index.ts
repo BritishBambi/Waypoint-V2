@@ -28,6 +28,22 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+// ─── Title award map ──────────────────────────────────────────────────────────
+// Steam AppID → title slug for 100% completion awards.
+
+const STEAM_APP_TITLE_MAP: Record<number, string> = {
+  620:     "portal-2-tester",
+  367520:  "hollow-knight-vessel",
+  504230:  "celeste-mountain",
+  1145360: "hades-champion",
+  292030:  "the-witcher-3-master",
+  1245620: "elden-ring-sovereign",
+  588650:  "dead-cells-beheaded",
+  814380:  "sekiro-wolf",
+  413150:  "stardew-valley-farmer",
+  268910:  "cuphead-hero",
+};
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -133,6 +149,8 @@ Deno.serve(async (req) => {
     last_synced_at: string;
   }> = [];
 
+  const newTitles: Array<{ name: string; slug: string }> = [];
+
   const now = new Date().toISOString();
 
   for (const row of matched) {
@@ -215,6 +233,46 @@ Deno.serve(async (req) => {
         // Non-fatal — continue with next game.
       }
 
+      // ── Title award: check for 100% completion ──────────────────────────────
+      if (achievementsTotal > 0 && achievementsUnlocked === achievementsTotal) {
+        const titleSlug = STEAM_APP_TITLE_MAP[appid];
+        if (titleSlug) {
+          try {
+            const { data: titleRow } = await admin
+              .from("titles")
+              .select("id, name")
+              .eq("slug", titleSlug)
+              .maybeSingle();
+
+            if (titleRow) {
+              // Only insert if not already awarded (upsert would silently succeed too).
+              const { data: existing } = await admin
+                .from("user_titles")
+                .select("title_id")
+                .eq("user_id", userId)
+                .eq("title_id", (titleRow as any).id)
+                .maybeSingle();
+
+              if (!existing) {
+                await admin.from("user_titles").insert({
+                  user_id:  userId,
+                  title_id: (titleRow as any).id,
+                });
+                await admin.from("notifications").insert({
+                  user_id:  userId,
+                  actor_id: userId,
+                  type:     "title_unlocked",
+                  title_id: (titleRow as any).id,
+                });
+                newTitles.push({ name: (titleRow as any).name, slug: titleSlug });
+              }
+            }
+          } catch (e) {
+            console.error("[steam-sync] Title award failed for appid:", appid, e);
+          }
+        }
+      }
+
       // Respect Steam API rate limit.
       await sleep(100);
     }
@@ -245,6 +303,7 @@ Deno.serve(async (req) => {
   return json({
     games_owned:   ownedGames.length,
     games_matched: matched.length,
+    new_titles:    newTitles,
     synced_at:     now,
   });
 });

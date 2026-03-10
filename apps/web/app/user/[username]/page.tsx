@@ -21,6 +21,7 @@ import { WishlistCarousel, type WishlistItem } from "./WishlistCarousel";
 import { ListCard } from "@/components/ListCard";
 import { SpoilerReveal } from "./SpoilerReveal";
 import { SteamBadge } from "./SteamBadge";
+import { UserTitle } from "@/components/UserTitle";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
 // Supabase returns nested objects for FK joins. We define our own shapes and
@@ -123,6 +124,13 @@ export default async function UserProfilePage({
   const profile = rawProfile as Tables<"profiles"> | null;
 
   if (!profile) notFound();
+
+  // ── Active title ─────────────────────────────────────────────────────────────
+  const activeTitleId = (profile as any).active_title_id as string | null;
+  const activeTitleRes = activeTitleId
+    ? await supabase.from("titles").select("name").eq("id", activeTitleId).maybeSingle()
+    : null;
+  const activeTitle = (activeTitleRes?.data as { name: string } | null)?.name ?? null;
 
   // ── Showcase fields ──────────────────────────────────────────────────────────
   const showcaseType    = (profile as any).showcase_type    as "review" | "list" | null;
@@ -405,6 +413,11 @@ export default async function UserProfilePage({
                   />
                 )}
               </div>
+              {activeTitle && (
+                <div className="mt-1">
+                  <UserTitle name={activeTitle} />
+                </div>
+              )}
             </div>
 
             {isOwnProfile ? (

@@ -38,6 +38,13 @@ type ListOption = {
   title: string;
 };
 
+type TitleOption = {
+  title_id: string;
+  name: string;
+  description: string;
+  awarded_at: string;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const AVATAR_COLORS = [
@@ -109,6 +116,10 @@ export function EditProfileForm({
   );
   const [userReviews, setUserReviews] = useState<ReviewOption[]>([]);
   const [userLists,   setUserLists]   = useState<ListOption[]>([]);
+
+  // ── Title state ───────────────────────────────────────────────────────────────
+  const [activeTitleId, setActiveTitleId] = useState<string | null>((profile as any).active_title_id ?? null);
+  const [userTitles, setUserTitles]       = useState<TitleOption[]>([]);
 
   // ── Steam state ───────────────────────────────────────────────────────────────
   const [steamId,          setSteamId]          = useState<string | null>((profile as any).steam_id          ?? null);
@@ -217,6 +228,28 @@ export function EditProfileForm({
     return () => { if (avatarPreview) URL.revokeObjectURL(avatarPreview); };
   }, [avatarPreview]);
 
+  // Load earned titles on mount (and on demand after sync).
+  async function loadTitles() {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("user_titles")
+      .select("title_id, awarded_at, titles(name, description)")
+      .eq("user_id", profile.id)
+      .order("awarded_at", { ascending: false });
+    if (data) {
+      setUserTitles(
+        (data as any[]).map((row) => ({
+          title_id:    row.title_id,
+          name:        row.titles?.name        ?? "",
+          description: row.titles?.description ?? "",
+          awarded_at:  row.awarded_at,
+        }))
+      );
+    }
+  }
+
+  useEffect(() => { loadTitles(); }, [profile.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Close modal on Escape.
   useEffect(() => {
     if (!modalOpen) return;
@@ -283,8 +316,14 @@ export function EditProfileForm({
     const res = await fetch("/api/steam/sync", { method: "POST" });
     setSyncing(false);
     if (res.ok) {
-      const { games_matched } = await res.json();
-      setToast(`Steam synced — ${games_matched} game${games_matched === 1 ? "" : "s"} matched`);
+      const data = await res.json();
+      const { games_matched, new_titles } = data as { games_matched: number; new_titles?: Array<{ name: string }> };
+      if (new_titles && new_titles.length > 0) {
+        await loadTitles();
+        setToast(`Title unlocked: "${new_titles[0].name}"!`);
+      } else {
+        setToast(`Steam synced — ${games_matched} game${games_matched === 1 ? "" : "s"} matched`);
+      }
     } else {
       setToast("Steam sync failed. Try again later.");
     }
@@ -348,6 +387,7 @@ export function EditProfileForm({
       showcase_type?: string | null;
       showcase_list_1_id?: string | null;
       showcase_list_2_id?: string | null;
+      active_title_id?: string | null;
     } = {
       display_name: displayName.trim() || null,
       username:     trimmedUsername,
@@ -357,6 +397,7 @@ export function EditProfileForm({
       featured_review_id: showcaseType === "review" ? featuredReviewId : null,
       showcase_list_1_id: showcaseType === "list"   ? showcaseList1Id  : null,
       showcase_list_2_id: showcaseType === "list"   ? showcaseList2Id  : null,
+      active_title_id: activeTitleId,
     };
     if (newAvatarUrl !== undefined) payload.avatar_url = newAvatarUrl;
 
@@ -875,6 +916,28 @@ export function EditProfileForm({
                 <p className="text-xs text-zinc-600">You have no lists yet.</p>
               )}
             </div>
+          )}
+        </div>
+
+        {/* ── Title ────────────────────────────────────────────────────────────── */}
+        <div>
+          <p className="mb-1 text-sm font-medium text-zinc-300">Active Title</p>
+          <p className="mb-3 text-xs text-zinc-500">
+            Titles are awarded for 100% completing a game&apos;s achievements. Sync Steam to unlock them.
+          </p>
+          {userTitles.length === 0 ? (
+            <p className="text-xs text-zinc-600">No titles earned yet. Sync Steam to check.</p>
+          ) : (
+            <select
+              value={activeTitleId ?? ""}
+              onChange={(e) => setActiveTitleId(e.target.value || null)}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="">None</option>
+              {userTitles.map((t) => (
+                <option key={t.title_id} value={t.title_id}>{t.name}</option>
+              ))}
+            </select>
           )}
         </div>
 

@@ -356,6 +356,7 @@ export type Database = {
           list_id: string | null
           read: boolean
           review_id: string | null
+          title_id: string | null
           type: Database["public"]["Enums"]["notification_type"]
           user_id: string
         }
@@ -368,6 +369,7 @@ export type Database = {
           list_id?: string | null
           read?: boolean
           review_id?: string | null
+          title_id?: string | null
           type: Database["public"]["Enums"]["notification_type"]
           user_id: string
         }
@@ -380,6 +382,7 @@ export type Database = {
           list_id?: string | null
           read?: boolean
           review_id?: string | null
+          title_id?: string | null
           type?: Database["public"]["Enums"]["notification_type"]
           user_id?: string
         }
@@ -405,10 +408,18 @@ export type Database = {
             referencedRelation: "reviews"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notifications_title_id_fkey"
+            columns: ["title_id"]
+            isOneToOne: false
+            referencedRelation: "titles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
         Row: {
+          active_title_id: string | null
           avatar_url: string | null
           bio: string | null
           created_at: string
@@ -428,6 +439,7 @@ export type Database = {
           website: string | null
         }
         Insert: {
+          active_title_id?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
@@ -447,6 +459,7 @@ export type Database = {
           website?: string | null
         }
         Update: {
+          active_title_id?: string | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
@@ -466,6 +479,13 @@ export type Database = {
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_active_title_id_fkey"
+            columns: ["active_title_id"]
+            isOneToOne: false
+            referencedRelation: "titles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_featured_review_id_fkey"
             columns: ["featured_review_id"]
@@ -677,6 +697,44 @@ export type Database = {
           },
         ]
       }
+      titles: {
+        Row: {
+          created_at: string
+          description: string
+          game_id: number | null
+          icon_url: string | null
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          game_id?: number | null
+          icon_url?: string | null
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          game_id?: number | null
+          icon_url?: string | null
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "titles_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_steam_achievements: {
         Row: {
           achievement_api_name: string
@@ -775,6 +833,39 @@ export type Database = {
           },
         ]
       }
+      user_titles: {
+        Row: {
+          awarded_at: string
+          title_id: string
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          title_id: string
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          title_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_titles_title_id_fkey"
+            columns: ["title_id"]
+            isOneToOne: false
+            referencedRelation: "titles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_titles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -797,6 +888,7 @@ export type Database = {
         | "review_reaction"
         | "list_like"
         | "comment_reply"
+        | "title_unlocked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -932,6 +1024,7 @@ export const Constants = {
         "review_reaction",
         "list_like",
         "comment_reply",
+        "title_unlocked",
       ],
     },
   },
