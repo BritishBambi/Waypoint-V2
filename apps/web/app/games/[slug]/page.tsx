@@ -15,6 +15,7 @@ import { ReviewSection } from "./ReviewSection";
 import { PersonalNoteSection } from "./PersonalNoteSection";
 import { formatPlaytime } from "@/lib/formatPlaytime";
 import { AchievementSection, type Achievement } from "@/components/AchievementSection";
+import { Trophy } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -301,6 +302,23 @@ export default async function GameDetailPage({ params }: Props) {
                 <NoCoverPlaceholder />
               )}
             </div>
+
+            {/* 100% completion badge — placeholder trophy, swap for custom art later */}
+            {steamData &&
+              steamData.achievements_total > 0 &&
+              steamData.achievements_unlocked === steamData.achievements_total && (
+              <div className="flex flex-col items-center gap-1 mt-3">
+                <div className="relative group w-fit">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-lg shadow-yellow-500/30 ring-2 ring-yellow-400/40">
+                    <Trophy className="w-6 h-6 text-yellow-900" fill="currentColor" />
+                  </div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black/90 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                    100% Achievements Unlocked
+                  </div>
+                </div>
+                <p className="text-xs text-yellow-500/70 font-medium tracking-wide">100%</p>
+              </div>
+            )}
           </div>
 
           {/* Game info */}
