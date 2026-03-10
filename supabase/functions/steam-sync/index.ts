@@ -46,6 +46,12 @@ Deno.serve(async (req) => {
   const serviceRoleKey   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const steamApiKey      = Deno.env.get("STEAM_API_KEY");
 
+  console.log('env check:', {
+    supabase_url_present:  !!Deno.env.get("SUPABASE_URL"),
+    service_role_present:  !!Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    steam_key_present:     !!Deno.env.get("STEAM_API_KEY"),
+  });
+
   if (!steamApiKey) {
     return json({ error: "STEAM_API_KEY not configured" }, 500);
   }
