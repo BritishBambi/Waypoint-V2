@@ -9,6 +9,9 @@ export async function POST() {
     const supabase = await createClient();
 
     const { data: { session } } = await supabase.auth.getSession();
+    console.log('session present:', !!session);
+    console.log('access token preview:', session?.access_token?.slice(0, 20) + '...');
+    console.log('full authorization header:', `Bearer ${session?.access_token?.slice(0, 20)}...`);
     if (!session) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
