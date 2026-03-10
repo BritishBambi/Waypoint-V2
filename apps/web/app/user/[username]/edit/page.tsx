@@ -9,10 +9,14 @@ import { EditProfileForm } from "./EditProfileForm";
 
 export default async function EditProfilePage({
   params,
+  searchParams,
 }: {
   params: { username: string };
+  searchParams: { steam?: string; steam_private?: string };
 }) {
   const { username } = params;
+  const steamParam   = searchParams.steam         ?? null;
+  const steamPrivate = searchParams.steam_private === "1";
   const supabase = await createClient();
 
   // Run auth check and profile lookup in parallel.
@@ -34,5 +38,5 @@ export default async function EditProfilePage({
     redirect(`/user/${username}`);
   }
 
-  return <EditProfileForm profile={profile} />;
+  return <EditProfileForm profile={profile} steamParam={steamParam} steamPrivate={steamPrivate} />;
 }

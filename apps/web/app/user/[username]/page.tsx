@@ -20,6 +20,7 @@ import { LibraryCarousel } from "./LibraryCarousel";
 import { WishlistCarousel, type WishlistItem } from "./WishlistCarousel";
 import { ListCard } from "@/components/ListCard";
 import { SpoilerReveal } from "./SpoilerReveal";
+import { SteamBadge } from "./SteamBadge";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
 // Supabase returns nested objects for FK joins. We define our own shapes and
@@ -380,7 +381,16 @@ export default async function UserProfilePage({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-white">{displayName}</h1>
-              <p className="text-sm text-zinc-500">@{profile.username}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-sm text-zinc-500">@{profile.username}</p>
+                {(profile as any).steam_id && (
+                  <SteamBadge
+                    steamId={(profile as any).steam_id}
+                    steamDisplayName={(profile as any).steam_display_name ?? null}
+                    steamAvatarUrl={(profile as any).steam_avatar_url ?? null}
+                  />
+                )}
+              </div>
             </div>
 
             {isOwnProfile ? (

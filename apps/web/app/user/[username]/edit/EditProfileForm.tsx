@@ -57,7 +57,15 @@ function avatarBg(username: string): string {
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
-export function EditProfileForm({ profile }: { profile: Profile }) {
+export function EditProfileForm({
+  profile,
+  steamParam   = null,
+  steamPrivate = false,
+}: {
+  profile: Profile;
+  steamParam?: string | null;
+  steamPrivate?: boolean;
+}) {
   const router = useRouter();
 
   // ── Profile field state ──────────────────────────────────────────────────────
@@ -101,6 +109,12 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
   );
   const [userReviews, setUserReviews] = useState<ReviewOption[]>([]);
   const [userLists,   setUserLists]   = useState<ListOption[]>([]);
+
+  // ── Steam state ───────────────────────────────────────────────────────────────
+  const [steamId,          setSteamId]          = useState<string | null>((profile as any).steam_id          ?? null);
+  const [steamDisplayName, setSteamDisplayName] = useState<string | null>((profile as any).steam_display_name ?? null);
+  const [steamAvatarUrl,   setSteamAvatarUrl]   = useState<string | null>((profile as any).steam_avatar_url   ?? null);
+  const [disconnecting,    setDisconnecting]    = useState(false);
 
   // ── UI state ─────────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false);
@@ -188,6 +202,15 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     return () => clearTimeout(id);
   }, [toast]);
 
+  // Show success toast when returning from Steam OAuth, then clean the URL.
+  useEffect(() => {
+    if (steamParam === "connected") {
+      setToast("Steam account connected! 🎮");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Revoke preview object URL to avoid memory leaks.
   useEffect(() => {
     return () => { if (avatarPreview) URL.revokeObjectURL(avatarPreview); };
@@ -252,6 +275,16 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
     next[modalTargetSlot] = { id: game.id, slug: game.slug, title: game.title, cover_url: game.cover_url };
     setSlots(next);
     closeModal();
+  }
+
+  async function handleSteamDisconnect() {
+    setDisconnecting(true);
+    await fetch("/api/steam/disconnect", { method: "POST" });
+    setSteamId(null);
+    setSteamDisplayName(null);
+    setSteamAvatarUrl(null);
+    setDisconnecting(false);
+    router.refresh();
   }
 
   function validate(): boolean {
@@ -830,6 +863,81 @@ export function EditProfileForm({ profile }: { profile: Profile }) {
               )}
             </div>
           )}
+        </div>
+
+        {/* ── Connected Accounts ────────────────────────────────────────────────── */}
+        <div>
+          <p className="mb-1 text-sm font-medium text-zinc-300">Connected Accounts</p>
+          <p className="mb-4 text-xs text-zinc-500">
+            Connect your gaming accounts to enrich your profile with playtime and achievements.
+          </p>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+            {/* Steam logo + label row */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                {/* Steam logo SVG */}
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" className="shrink-0 text-white" aria-hidden="true">
+                  <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.031 4.524 4.527s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.718L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0zM7.54 18.21l-1.473-.61c.262.543.714.999 1.314 1.25 1.297.539 2.793-.076 3.332-1.375.263-.63.264-1.319.005-1.949s-.75-1.121-1.377-1.383c-.624-.26-1.29-.249-1.878-.03l1.523.63c.956.4 1.409 1.492 1.009 2.448-.397.957-1.488 1.41-2.445 1.019zm11.415-9.303c0-1.662-1.353-3.015-3.015-3.015-1.665 0-3.015 1.353-3.015 3.015 0 1.665 1.35 3.015 3.015 3.015 1.663 0 3.015-1.35 3.015-3.015zm-5.273-.005c0-1.252 1.013-2.266 2.265-2.266 1.249 0 2.266 1.014 2.266 2.266 0 1.251-1.017 2.265-2.266 2.265-1.252 0-2.265-1.014-2.265-2.265z"/>
+                </svg>
+
+                {steamId ? (
+                  /* Connected state */
+                  <div className="flex items-center gap-2.5">
+                    {steamAvatarUrl && (
+                      <Image
+                        src={steamAvatarUrl}
+                        alt={steamDisplayName ?? "Steam avatar"}
+                        width={28}
+                        height={28}
+                        className="rounded-full"
+                      />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-white">{steamDisplayName ?? "Steam"}</p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        Connected
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-sm text-zinc-300">Steam</span>
+                )}
+              </div>
+
+              {steamId ? (
+                <button
+                  type="button"
+                  onClick={handleSteamDisconnect}
+                  disabled={disconnecting}
+                  className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-300 disabled:opacity-50"
+                >
+                  {disconnecting ? "Disconnecting…" : "Disconnect"}
+                </button>
+              ) : (
+                <a
+                  href="/auth/steam"
+                  className="rounded-lg bg-[#1b2838] px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#2a475e]"
+                >
+                  Connect Steam
+                </a>
+              )}
+            </div>
+
+            {/* Private profile warning */}
+            {steamId && steamPrivate && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-amber-400" aria-hidden="true">
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <p className="text-xs leading-relaxed text-amber-300">
+                  Your Steam profile is set to Private. Set it to Public in Steam privacy settings to show playtime and achievements on Waypoint.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Global error ───────────────────────────────────────────────────────── */}

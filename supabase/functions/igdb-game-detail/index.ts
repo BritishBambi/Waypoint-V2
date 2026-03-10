@@ -121,7 +121,7 @@ function transformGame(game: IgdbGame) {
 
   const steamEntry = game.external_games?.find((eg) => {
     const num = parseInt(eg.uid, 10);
-    return !isNaN(num) && num > 100000 && num < 4000000 && eg.uid === String(num);
+    return !isNaN(num) && num >= 400000 && num < 2100000 && eg.uid === String(num);
   });
   const steam_app_id = steamEntry ? parseInt(steamEntry.uid, 10) : null;
   console.log("[igdb-game-detail] steam_app_id extracted:", steam_app_id);
