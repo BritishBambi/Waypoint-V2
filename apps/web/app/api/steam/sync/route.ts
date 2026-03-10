@@ -2,20 +2,20 @@
 // Triggers a Steam library sync for the currently logged-in user.
 // Calls the steam-sync Edge Function and returns the summary to the client.
 
-import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST() {
   try {
     const supabase = await createClient();
 
-    const [{ data: { user } }, { data: { session } }] = await Promise.all([
-      supabase.auth.getUser(),
-      supabase.auth.getSession(),
-    ]);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (!user || !session) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get the user's steam_id from their profile.
@@ -27,7 +27,7 @@ export async function POST() {
     const steamId = (rawProfile as { steam_id: string | null } | null)?.steam_id ?? null;
 
     if (!steamId) {
-      return NextResponse.json({ error: "No Steam account connected" }, { status: 400 });
+      return Response.json({ error: "No Steam account connected" }, { status: 400 });
     }
 
     // Call the steam-sync Edge Function with the user's session token so the
@@ -55,14 +55,14 @@ export async function POST() {
     console.log('edge function response body:', body);
 
     if (!syncRes.ok) {
-      return NextResponse.json(
+      return Response.json(
         { error: `Sync failed: ${syncRes.status} ${body}` },
         { status: 502 }
       );
     }
 
     const summary = JSON.parse(body);
-    return NextResponse.json(summary);
+    return Response.json(summary);
   } catch (error) {
     console.error('steam sync route error:', error);
     return Response.json({ error: String(error) }, { status: 500 });
