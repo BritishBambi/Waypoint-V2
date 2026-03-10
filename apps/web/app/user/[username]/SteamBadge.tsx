@@ -52,7 +52,7 @@ export function SteamBadge({
       {/* Portal tooltip — renders at document.body to escape overflow clipping */}
       {mounted && tooltip && createPortal(
         <div
-          className="pointer-events-none fixed z-[9999] -translate-x-1/2 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2.5 shadow-xl"
+          className="pointer-events-none fixed z-[9999] -translate-x-1/2 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2.5 shadow-xl whitespace-nowrap"
           style={{ left: tooltip.x, top: tooltip.y - 8, transform: "translate(-50%, -100%)" }}
         >
           <div className="flex items-center gap-2.5">
@@ -65,9 +65,9 @@ export function SteamBadge({
                 className="rounded-full"
               />
             )}
-            <div className="min-w-0">
+            <div>
               {steamDisplayName && (
-                <p className="truncate text-sm font-medium text-white">{steamDisplayName}</p>
+                <p className="text-sm font-medium text-white">{steamDisplayName}</p>
               )}
               <p className="text-xs text-zinc-400">View on Steam →</p>
             </div>
