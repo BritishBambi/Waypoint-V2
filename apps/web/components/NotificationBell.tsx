@@ -7,18 +7,20 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { igdbCover } from "@/lib/igdb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type NotificationRow = {
   id: string;
-  type: "follow" | "review_like" | "review_reaction" | "review_comment" | "comment_reply" | "list_like" | "welcome";
+  type: "follow" | "review_like" | "review_reaction" | "review_comment" | "comment_reply" | "list_like" | "welcome" | "title_unlocked";
   read: boolean;
   created_at: string;
   actor_id: string | null;
   review_id: string | null;
   comment_id: string | null;
   list_id: string | null;
+  title_id: string | null;
   emoji: string | null;         // set on review_reaction notifications
   actor: {
     id: string;
@@ -33,6 +35,12 @@ type NotificationRow = {
   list: {
     id: string;
     title: string;
+  } | null;
+  title: {
+    name: string;
+    color: string;
+    steam_app_id: number | null;
+    game: { title: string; cover_url: string | null } | null;
   } | null;
   comment_body: string | null; // joined separately
 };
@@ -91,9 +99,10 @@ export function NotificationBell({ userId }: { userId: string }) {
     const { data } = await supabase
       .from("notifications")
       .select(`
-        id, type, read, created_at, actor_id, review_id, comment_id, list_id, emoji,
+        id, type, read, created_at, actor_id, review_id, comment_id, list_id, title_id, emoji,
         review:reviews(id, games(title, slug)),
-        list:lists(id, title)
+        list:lists(id, title),
+        title:titles!title_id(name, color, steam_app_id, game:games(title, cover_url))
       `)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -587,6 +596,43 @@ function SingleRow({
               <> <span className="font-medium text-white">&ldquo;{listTitle}&rdquo;</span></>
             ) : ""}.
           </p>
+          <p className="mt-0.5 text-xs text-zinc-600">{timeAgo(item.created_at)}</p>
+        </div>
+      </RowWrapper>
+    );
+  }
+
+  if (item.type === "title_unlocked") {
+    const coverSrc = item.title?.game?.cover_url
+      ? igdbCover(item.title.game.cover_url, "t_cover_big")!
+      : null;
+
+    return (
+      <RowWrapper
+        unread={!item.read}
+        href="/search"
+        onRead={onRead}
+        onClose={onClose}
+        onDismiss={onDismiss}
+      >
+        <div className="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-800">
+          {coverSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={coverSrc} alt="" className="h-full w-full object-cover object-top" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs text-zinc-500">🏆</div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm leading-snug text-zinc-300">
+            Title unlocked:{" "}
+            <span className="font-medium" style={{ color: item.title?.color ?? "#a78bfa" }}>
+              {item.title?.name ?? "Unknown title"}
+            </span>
+          </p>
+          {item.title?.game?.title && (
+            <p className="mt-0.5 text-xs text-zinc-500">{item.title.game.title}</p>
+          )}
           <p className="mt-0.5 text-xs text-zinc-600">{timeAgo(item.created_at)}</p>
         </div>
       </RowWrapper>
