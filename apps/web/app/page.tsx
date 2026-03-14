@@ -8,7 +8,7 @@ import { type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { igdbCover } from "@/lib/igdb";
+import { igdbCover, portraitCover } from "@/lib/igdb";
 import { PopularCarousel } from "./PopularCarousel";
 import { UpcomingCarousel } from "./UpcomingCarousel";
 import { WelcomeToast } from "@/components/WelcomeToast";
@@ -1071,9 +1071,8 @@ function RecentListCard({ list }: { list: RecentListItem }) {
           {(profile.active_title?.game?.cover_url ?? profile.active_title?.steam_app_id) && (
             <div className="h-3.5 w-3.5 rounded-full overflow-hidden flex-shrink-0" title={profile.active_title!.name}>
               <img
-                src={profile.active_title!.game?.cover_url
-                  ? igdbCover(profile.active_title!.game.cover_url, "t_cover_big")!
-                  : `https://cdn.cloudflare.steamstatic.com/steam/apps/${profile.active_title!.steam_app_id}/header.jpg`}
+                src={portraitCover(profile.active_title!.game?.cover_url)
+                  ?? `https://cdn.cloudflare.steamstatic.com/steam/apps/${profile.active_title!.steam_app_id}/header.jpg`}
                 alt={profile.active_title!.name}
                 className="w-full h-full object-cover object-top"
               />

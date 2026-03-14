@@ -8,7 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useId } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { igdbCover } from "@/lib/igdb";
+import { portraitCover } from "@/lib/igdb";
 import type { ReviewWithAuthor, LogSummary } from "./page";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -359,9 +359,8 @@ function ReviewCard({ review, isAuthor, autoRevealSpoilers }: { review: ReviewWi
               {((author as any)?.active_title?.game?.cover_url ?? (author as any)?.active_title?.steam_app_id) && (
                 <div className="h-4 w-4 rounded-full overflow-hidden flex-shrink-0" title={(author as any).active_title.name}>
                   <img
-                    src={(author as any).active_title.game?.cover_url
-                      ? igdbCover((author as any).active_title.game.cover_url, "t_cover_big")!
-                      : `https://cdn.cloudflare.steamstatic.com/steam/apps/${(author as any).active_title.steam_app_id}/header.jpg`}
+                    src={portraitCover((author as any).active_title.game?.cover_url)
+                      ?? `https://cdn.cloudflare.steamstatic.com/steam/apps/${(author as any).active_title.steam_app_id}/header.jpg`}
                     alt={(author as any).active_title.name}
                     className="w-full h-full object-cover object-top"
                   />

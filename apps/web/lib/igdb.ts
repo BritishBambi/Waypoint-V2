@@ -21,3 +21,11 @@ export function igdbCover(
   // t_cover_big_2x, etc.) so this works regardless of what was stored.
   return url.replace(/\/t_[a-z0-9_]+\//, `/${size}/`);
 }
+
+// portraitCover — always returns t_cover_big (portrait, ~2:3) and ensures
+// the URL is absolute (protocol-relative //images.igdb.com → https://).
+// Use this for title icon thumbnails where a square crop is applied.
+export function portraitCover(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return igdbCover(url, "t_cover_big")!.replace(/^\/\//, "https://");
+}

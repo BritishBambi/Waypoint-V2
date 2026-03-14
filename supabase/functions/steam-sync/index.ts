@@ -120,7 +120,10 @@ async function discoverGamesFromIGDB(
         if (isNaN(steamAppId)) return null;
 
         const coverUrl = game.cover?.url
-          ? game.cover.url.replace("t_thumb", "t_cover_big").replace(/^\/\//, "https://")
+          ? game.cover.url
+              .replace("t_thumb", "t_cover_big")
+              .replace("t_720p", "t_cover_big")
+              .replace(/^\/\//, "https://")
           : null;
 
         const releaseDate =

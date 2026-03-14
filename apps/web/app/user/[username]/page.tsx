@@ -14,7 +14,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Tables } from "@waypoint/types";
 import { createClient } from "@/lib/supabase/server";
-import { igdbCover } from "@/lib/igdb";
+import { igdbCover, portraitCover } from "@/lib/igdb";
 import { FollowButton } from "./FollowButton";
 import { LibraryCarousel } from "./LibraryCarousel";
 import { WishlistCarousel, type WishlistItem } from "./WishlistCarousel";
@@ -421,9 +421,8 @@ export default async function UserProfilePage({
                   {(activeTitleCoverUrl ?? activeTitleSteamAppId) && (
                     <div className="h-5 w-5 rounded-full overflow-hidden flex-shrink-0">
                       <img
-                        src={activeTitleCoverUrl
-                          ? igdbCover(activeTitleCoverUrl, "t_cover_big")!
-                          : `https://cdn.cloudflare.steamstatic.com/steam/apps/${activeTitleSteamAppId}/header.jpg`}
+                        src={portraitCover(activeTitleCoverUrl)
+                          ?? `https://cdn.cloudflare.steamstatic.com/steam/apps/${activeTitleSteamAppId}/header.jpg`}
                         alt=""
                         className="w-full h-full object-cover object-top"
                       />

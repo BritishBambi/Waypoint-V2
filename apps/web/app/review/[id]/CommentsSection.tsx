@@ -8,7 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { igdbCover } from "@/lib/igdb";
+import { portraitCover } from "@/lib/igdb";
 import type { ReviewComment } from "./page";
 
 interface Props {
@@ -281,9 +281,8 @@ function CommentCard({
             {((author as any)?.active_title?.game?.cover_url ?? (author as any)?.active_title?.steam_app_id) && (
               <div className="h-3.5 w-3.5 rounded-full overflow-hidden flex-shrink-0" title={(author as any).active_title.name}>
                 <img
-                  src={(author as any).active_title.game?.cover_url
-                    ? igdbCover((author as any).active_title.game.cover_url, "t_cover_big")!
-                    : `https://cdn.cloudflare.steamstatic.com/steam/apps/${(author as any).active_title.steam_app_id}/header.jpg`}
+                  src={portraitCover((author as any).active_title.game?.cover_url)
+                    ?? `https://cdn.cloudflare.steamstatic.com/steam/apps/${(author as any).active_title.steam_app_id}/header.jpg`}
                   alt={(author as any).active_title.name}
                   className="w-full h-full object-cover object-top"
                 />

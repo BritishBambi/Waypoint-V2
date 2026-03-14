@@ -7,7 +7,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { igdbCover } from "@/lib/igdb";
+import { portraitCover } from "@/lib/igdb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -603,9 +603,7 @@ function SingleRow({
   }
 
   if (item.type === "title_unlocked") {
-    const coverSrc = item.title?.game?.cover_url
-      ? igdbCover(item.title.game.cover_url, "t_cover_big")!
-      : null;
+    const coverSrc = portraitCover(item.title?.game?.cover_url);
 
     return (
       <RowWrapper
