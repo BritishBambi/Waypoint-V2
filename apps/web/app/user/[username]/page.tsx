@@ -421,7 +421,7 @@ export default async function UserProfilePage({
               {activeTitle && (
                 <div className="mt-1 flex items-center gap-2">
                   {(activeTitleIconHash ?? activeTitleCoverUrl ?? activeTitleSteamAppId) && (
-                    <div className="h-5 w-5 rounded-full overflow-hidden flex-shrink-0 bg-white/10">
+                    <div className="h-8 w-8 rounded-full overflow-hidden flex-shrink-0 bg-white/10">
                       <img
                         src={steamIconUrl(activeTitleSteamAppId, activeTitleIconHash)
                           ?? portraitCover(activeTitleCoverUrl)

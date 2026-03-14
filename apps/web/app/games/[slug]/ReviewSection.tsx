@@ -358,7 +358,7 @@ function ReviewCard({ review, isAuthor, autoRevealSpoilers }: { review: ReviewWi
                 <span className="text-sm font-medium text-white">{displayName}</span>
               )}
               {((author as any)?.active_title?.game?.icon_hash ?? (author as any)?.active_title?.game?.cover_url ?? (author as any)?.active_title?.steam_app_id) && (
-                <div className="h-4 w-4 rounded-full overflow-hidden flex-shrink-0 bg-white/10" title={(author as any).active_title.name}>
+                <div className="h-8 w-8 rounded-full overflow-hidden flex-shrink-0 bg-white/10" title={(author as any).active_title.name}>
                   <img
                     src={steamIconUrl((author as any).active_title.steam_app_id, (author as any).active_title.game?.icon_hash)
                       ?? portraitCover((author as any).active_title.game?.cover_url)

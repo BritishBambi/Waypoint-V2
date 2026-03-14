@@ -1070,7 +1070,7 @@ function RecentListCard({ list }: { list: RecentListItem }) {
           )}
           {displayName}
           {(profile.active_title?.game?.icon_hash ?? profile.active_title?.game?.cover_url ?? profile.active_title?.steam_app_id) && (
-            <div className="h-3.5 w-3.5 rounded-full overflow-hidden flex-shrink-0 bg-white/10" title={profile.active_title!.name}>
+            <div className="h-8 w-8 rounded-full overflow-hidden flex-shrink-0 bg-white/10" title={profile.active_title!.name}>
               <img
                 src={steamIconUrl(profile.active_title!.steam_app_id, profile.active_title!.game?.icon_hash ?? null)
                   ?? portraitCover(profile.active_title!.game?.cover_url)
