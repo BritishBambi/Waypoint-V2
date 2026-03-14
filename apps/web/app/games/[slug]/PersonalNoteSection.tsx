@@ -58,11 +58,15 @@ export function PersonalNoteSection({ gameId, userId, initialNotes, initialUpdat
 
   async function handleDelete() {
     const supabase = createClient();
-    await (supabase as any)
+    const { error } = await (supabase as any)
       .from("game_logs")
       .update({ notes: null })
       .eq("game_id", gameId)
       .eq("user_id", userId);
+    if (error) {
+      toast("Could not delete note", "error");
+      return;
+    }
     setNotes("");
     setMode("view");
     router.refresh();
