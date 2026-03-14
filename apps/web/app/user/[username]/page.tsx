@@ -128,9 +128,11 @@ export default async function UserProfilePage({
   // ── Active title ─────────────────────────────────────────────────────────────
   const activeTitleId = (profile as any).active_title_id as string | null;
   const activeTitleRes = activeTitleId
-    ? await supabase.from("titles").select("name").eq("id", activeTitleId).maybeSingle()
+    ? await supabase.from("titles").select("name, color").eq("id", activeTitleId).maybeSingle()
     : null;
-  const activeTitle = (activeTitleRes?.data as { name: string } | null)?.name ?? null;
+  const activeTitleData = activeTitleRes?.data as { name: string; color: string } | null;
+  const activeTitle = activeTitleData?.name ?? null;
+  const activeTitleColor = activeTitleData?.color ?? null;
 
   // ── Showcase fields ──────────────────────────────────────────────────────────
   const showcaseType    = (profile as any).showcase_type    as "review" | "list" | null;
@@ -415,7 +417,7 @@ export default async function UserProfilePage({
               </div>
               {activeTitle && (
                 <div className="mt-1">
-                  <UserTitle name={activeTitle} />
+                  <UserTitle name={activeTitle} color={activeTitleColor ?? undefined} />
                 </div>
               )}
             </div>
