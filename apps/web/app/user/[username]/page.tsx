@@ -127,12 +127,13 @@ export default async function UserProfilePage({
   // ── Active title ─────────────────────────────────────────────────────────────
   const activeTitleId = (profile as any).active_title_id as string | null;
   const activeTitleRes = activeTitleId
-    ? await supabase.from("titles").select("name, color, steam_app_id").eq("id", activeTitleId).maybeSingle()
+    ? await supabase.from("titles").select("name, color, steam_app_id, game:games(cover_url)").eq("id", activeTitleId).maybeSingle()
     : null;
-  const activeTitleData = activeTitleRes?.data as { name: string; color: string; steam_app_id: number | null } | null;
+  const activeTitleData = activeTitleRes?.data as { name: string; color: string; steam_app_id: number | null; game: { cover_url: string | null } | null } | null;
   const activeTitle = activeTitleData?.name ?? null;
   const activeTitleColor = activeTitleData?.color ?? null;
   const activeTitleSteamAppId = activeTitleData?.steam_app_id ?? null;
+  const activeTitleCoverUrl = activeTitleData?.game?.cover_url ?? null;
 
   // ── Showcase fields ──────────────────────────────────────────────────────────
   const showcaseType    = (profile as any).showcase_type    as "review" | "list" | null;
@@ -417,12 +418,14 @@ export default async function UserProfilePage({
               </div>
               {activeTitle && (
                 <div className="mt-1 flex items-center gap-2">
-                  {activeTitleSteamAppId && (
+                  {(activeTitleCoverUrl ?? activeTitleSteamAppId) && (
                     <div className="h-5 w-5 rounded-full overflow-hidden flex-shrink-0">
                       <img
-                        src={`https://cdn.cloudflare.steamstatic.com/steam/apps/${activeTitleSteamAppId}/header.jpg`}
+                        src={activeTitleCoverUrl
+                          ? igdbCover(activeTitleCoverUrl, "t_cover_big")!
+                          : `https://cdn.cloudflare.steamstatic.com/steam/apps/${activeTitleSteamAppId}/header.jpg`}
                         alt=""
-                        className="w-full h-full object-cover object-center"
+                        className="w-full h-full object-cover object-top"
                       />
                     </div>
                   )}

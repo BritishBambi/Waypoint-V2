@@ -35,7 +35,9 @@ export type ReviewWithAuthor = Tables<"reviews"> & {
   profiles: Pick<
     Tables<"profiles">,
     "username" | "display_name" | "avatar_url"
-  > | null;
+  > & {
+    active_title: { name: string; color: string; steam_app_id: number | null; game: { cover_url: string | null } | null } | null;
+  } | null;
   reaction_counts: Record<string, number>;
   comment_count: number;
 };
@@ -115,7 +117,7 @@ export default async function GameDetailPage({ params }: Props) {
     supabase.auth.getUser(),
     supabase
       .from("reviews")
-      .select("*, profiles!reviews_user_id_fkey(username, display_name, avatar_url)")
+      .select("*, profiles!reviews_user_id_fkey(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url)))")
       .eq("game_id", game.id)
       .eq("is_draft", false)
       .not("published_at", "is", null)

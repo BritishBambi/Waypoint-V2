@@ -39,7 +39,7 @@ export default async function ActivityPage() {
         .select(
           "id, status, created_at, updated_at, " +
             "games(id, slug, title, cover_url), " +
-            "profiles(username, display_name, avatar_url), " +
+            "profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url))), " +
             "reviews!log_id(rating)"
         )
         .in("user_id", followedIds)

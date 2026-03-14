@@ -8,6 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useId } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { igdbCover } from "@/lib/igdb";
 import type { ReviewWithAuthor, LogSummary } from "./page";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ export function ReviewSection({
     const supabase = createClient();
     const { data } = await supabase
       .from("reviews")
-      .select("*, profiles!reviews_user_id_fkey(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id))")
+      .select("*, profiles!reviews_user_id_fkey(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url)))")
       .eq("game_id", gameId)
       .eq("is_draft", false)
       .not("published_at", "is", null)
@@ -355,12 +356,14 @@ function ReviewCard({ review, isAuthor, autoRevealSpoilers }: { review: ReviewWi
               ) : (
                 <span className="text-sm font-medium text-white">{displayName}</span>
               )}
-              {(author as any)?.active_title?.steam_app_id && (
+              {((author as any)?.active_title?.game?.cover_url ?? (author as any)?.active_title?.steam_app_id) && (
                 <div className="h-4 w-4 rounded-full overflow-hidden flex-shrink-0" title={(author as any).active_title.name}>
                   <img
-                    src={`https://cdn.cloudflare.steamstatic.com/steam/apps/${(author as any).active_title.steam_app_id}/header.jpg`}
+                    src={(author as any).active_title.game?.cover_url
+                      ? igdbCover((author as any).active_title.game.cover_url, "t_cover_big")!
+                      : `https://cdn.cloudflare.steamstatic.com/steam/apps/${(author as any).active_title.steam_app_id}/header.jpg`}
                     alt={(author as any).active_title.name}
-                    className="w-full h-full object-cover object-center"
+                    className="w-full h-full object-cover object-top"
                   />
                 </div>
               )}
