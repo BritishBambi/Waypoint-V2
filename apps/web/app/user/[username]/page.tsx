@@ -15,6 +15,7 @@ import { notFound } from "next/navigation";
 import type { Tables } from "@waypoint/types";
 import { createClient } from "@/lib/supabase/server";
 import { igdbCover, portraitCover } from "@/lib/igdb";
+import { steamIconUrl } from "@/lib/steamIcon";
 import { FollowButton } from "./FollowButton";
 import { LibraryCarousel } from "./LibraryCarousel";
 import { WishlistCarousel, type WishlistItem } from "./WishlistCarousel";
@@ -127,13 +128,14 @@ export default async function UserProfilePage({
   // ── Active title ─────────────────────────────────────────────────────────────
   const activeTitleId = (profile as any).active_title_id as string | null;
   const activeTitleRes = activeTitleId
-    ? await supabase.from("titles").select("name, color, steam_app_id, game:games(cover_url)").eq("id", activeTitleId).maybeSingle()
+    ? await supabase.from("titles").select("name, color, steam_app_id, game:games(cover_url, icon_hash)").eq("id", activeTitleId).maybeSingle()
     : null;
-  const activeTitleData = activeTitleRes?.data as { name: string; color: string; steam_app_id: number | null; game: { cover_url: string | null } | null } | null;
+  const activeTitleData = activeTitleRes?.data as { name: string; color: string; steam_app_id: number | null; game: { cover_url: string | null; icon_hash: string | null } | null } | null;
   const activeTitle = activeTitleData?.name ?? null;
   const activeTitleColor = activeTitleData?.color ?? null;
   const activeTitleSteamAppId = activeTitleData?.steam_app_id ?? null;
   const activeTitleCoverUrl = activeTitleData?.game?.cover_url ?? null;
+  const activeTitleIconHash = activeTitleData?.game?.icon_hash ?? null;
 
   // ── Showcase fields ──────────────────────────────────────────────────────────
   const showcaseType    = (profile as any).showcase_type    as "review" | "list" | null;
@@ -418,13 +420,14 @@ export default async function UserProfilePage({
               </div>
               {activeTitle && (
                 <div className="mt-1 flex items-center gap-2">
-                  {(activeTitleCoverUrl ?? activeTitleSteamAppId) && (
-                    <div className="h-5 w-5 rounded-full overflow-hidden flex-shrink-0">
+                  {(activeTitleIconHash ?? activeTitleCoverUrl ?? activeTitleSteamAppId) && (
+                    <div className="h-5 w-5 rounded-full overflow-hidden flex-shrink-0 bg-white/10">
                       <img
-                        src={portraitCover(activeTitleCoverUrl)
-                          ?? `https://cdn.cloudflare.steamstatic.com/steam/apps/${activeTitleSteamAppId}/header.jpg`}
+                        src={steamIconUrl(activeTitleSteamAppId, activeTitleIconHash)
+                          ?? portraitCover(activeTitleCoverUrl)
+                          ?? ""}
                         alt=""
-                        className="w-full h-full object-cover object-top"
+                        className="w-full h-full object-cover object-center"
                       />
                     </div>
                   )}

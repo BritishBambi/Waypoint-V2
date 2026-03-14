@@ -27,7 +27,7 @@ export type FeedItem = {
     username: string;
     display_name: string | null;
     avatar_url: string | null;
-    active_title: { name: string; color: string; steam_app_id: number | null; game: { cover_url: string | null } | null } | null;
+    active_title: { name: string; color: string; steam_app_id: number | null; game: { cover_url: string | null; icon_hash: string | null } | null } | null;
   } | null;
   reviews: { rating: number | null } | null;
 };
@@ -80,7 +80,7 @@ export function ActivityFeed({ initialItems, followedIds, userId, totalCount }: 
       .select(
         "id, status, created_at, updated_at, " +
           "games(id, slug, title, cover_url), " +
-          "profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url))), " +
+          "profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url, icon_hash))), " +
           "reviews!log_id(rating)"
       )
       .in("user_id", followedIds)

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { portraitCover } from "@/lib/igdb";
+import { steamIconUrl } from "@/lib/steamIcon";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ type NotificationRow = {
     name: string;
     color: string;
     steam_app_id: number | null;
-    game: { title: string; cover_url: string | null } | null;
+    game: { title: string; cover_url: string | null; icon_hash: string | null } | null;
   } | null;
   comment_body: string | null; // joined separately
 };
@@ -102,7 +103,7 @@ export function NotificationBell({ userId }: { userId: string }) {
         id, type, read, created_at, actor_id, review_id, comment_id, list_id, title_id, emoji,
         review:reviews(id, games(title, slug)),
         list:lists(id, title),
-        title:titles!title_id(name, color, steam_app_id, game:games(title, cover_url))
+        title:titles!title_id(name, color, steam_app_id, game:games(title, cover_url, icon_hash))
       `)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
@@ -603,7 +604,8 @@ function SingleRow({
   }
 
   if (item.type === "title_unlocked") {
-    const coverSrc = portraitCover(item.title?.game?.cover_url);
+    const coverSrc = steamIconUrl(item.title?.steam_app_id ?? null, item.title?.game?.icon_hash ?? null)
+      ?? portraitCover(item.title?.game?.cover_url);
 
     return (
       <RowWrapper

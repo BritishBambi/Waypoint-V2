@@ -24,7 +24,7 @@ export type ReviewComment = {
     username: string | null;
     display_name: string | null;
     avatar_url: string | null;
-    active_title: { name: string; color: string; steam_app_id: number | null; game: { cover_url: string | null } | null } | null;
+    active_title: { name: string; color: string; steam_app_id: number | null; game: { cover_url: string | null; icon_hash: string | null } | null } | null;
   } | null;
 };
 
@@ -70,7 +70,7 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
         .eq("review_id", id),
       (supabase as any)
         .from("review_comments")
-        .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url)))")
+        .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url, icon_hash)))")
         .eq("review_id", id)
         .order("created_at", { ascending: true })
         .limit(100),

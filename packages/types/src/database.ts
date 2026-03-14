@@ -192,6 +192,7 @@ export type Database = {
         Row: {
           cover_url: string | null
           genres: string[] | null
+          icon_hash: string | null
           id: number
           igdb_rating: number | null
           igdb_synced_at: string | null
@@ -205,6 +206,7 @@ export type Database = {
         Insert: {
           cover_url?: string | null
           genres?: string[] | null
+          icon_hash?: string | null
           id: number
           igdb_rating?: number | null
           igdb_synced_at?: string | null
@@ -218,6 +220,7 @@ export type Database = {
         Update: {
           cover_url?: string | null
           genres?: string[] | null
+          icon_hash?: string | null
           id?: number
           igdb_rating?: number | null
           igdb_synced_at?: string | null

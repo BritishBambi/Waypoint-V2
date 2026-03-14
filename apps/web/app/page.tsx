@@ -9,6 +9,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { igdbCover, portraitCover } from "@/lib/igdb";
+import { steamIconUrl } from "@/lib/steamIcon";
 import { PopularCarousel } from "./PopularCarousel";
 import { UpcomingCarousel } from "./UpcomingCarousel";
 import { WelcomeToast } from "@/components/WelcomeToast";
@@ -29,7 +30,7 @@ export type GameStub = {
 // reviews (one-to-one via UNIQUE FK on reviews.log_id → game_logs.id).
 // PostgREST 14+ returns one-to-one embeds as a single object (or null),
 // NOT as an array — so reviews is { rating: number | null } | null.
-type ActiveTitle = { name: string; color: string; steam_app_id: number | null; game: { cover_url: string | null } | null } | null;
+type ActiveTitle = { name: string; color: string; steam_app_id: number | null; game: { cover_url: string | null; icon_hash: string | null } | null } | null;
 
 type FeedItem = {
   id: string;
@@ -135,7 +136,7 @@ export default async function Home({
         .from("lists")
         .select(`
           id, title, description, created_at,
-          profiles!lists_user_id_fkey(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url))),
+          profiles!lists_user_id_fkey(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url, icon_hash))),
           list_entries(position, games(cover_url)),
           list_likes(id, created_at)
         `)
@@ -371,7 +372,7 @@ export default async function Home({
             .select(
               "id, status, created_at, updated_at, " +
                 "games(id, slug, title, cover_url), " +
-                "profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url))), " +
+                "profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url, icon_hash))), " +
                 "reviews!log_id(rating)"
             )
             .in("user_id", followedIds)
@@ -672,7 +673,7 @@ export default async function Home({
       .from("lists")
       .select(`
         id, title, description, created_at,
-        profiles!lists_user_id_fkey(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url))),
+        profiles!lists_user_id_fkey(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url, icon_hash))),
         list_entries(position, games(cover_url)),
         list_likes(id)
       `)
@@ -1068,13 +1069,14 @@ function RecentListCard({ list }: { list: RecentListItem }) {
             </div>
           )}
           {displayName}
-          {(profile.active_title?.game?.cover_url ?? profile.active_title?.steam_app_id) && (
-            <div className="h-3.5 w-3.5 rounded-full overflow-hidden flex-shrink-0" title={profile.active_title!.name}>
+          {(profile.active_title?.game?.icon_hash ?? profile.active_title?.game?.cover_url ?? profile.active_title?.steam_app_id) && (
+            <div className="h-3.5 w-3.5 rounded-full overflow-hidden flex-shrink-0 bg-white/10" title={profile.active_title!.name}>
               <img
-                src={portraitCover(profile.active_title!.game?.cover_url)
-                  ?? `https://cdn.cloudflare.steamstatic.com/steam/apps/${profile.active_title!.steam_app_id}/header.jpg`}
+                src={steamIconUrl(profile.active_title!.steam_app_id, profile.active_title!.game?.icon_hash ?? null)
+                  ?? portraitCover(profile.active_title!.game?.cover_url)
+                  ?? ""}
                 alt={profile.active_title!.name}
-                className="w-full h-full object-cover object-top"
+                className="w-full h-full object-cover object-center"
               />
             </div>
           )}

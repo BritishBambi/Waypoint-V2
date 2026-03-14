@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { portraitCover } from "@/lib/igdb";
+import { steamIconUrl } from "@/lib/steamIcon";
 import type { ReviewComment } from "./page";
 
 interface Props {
@@ -79,7 +80,7 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
         body: trimmed,
         ...(replyTo ? { reply_to_id: replyTo.id } : {}),
       })
-      .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url)))")
+      .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url, icon_hash)))")
       .maybeSingle();
 
     if (insertErr) {
@@ -106,7 +107,7 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
     if (deleteErr) {
       const { data } = await (supabase as any)
         .from("review_comments")
-        .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url)))")
+        .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id, game:games(cover_url, icon_hash)))")
         .eq("review_id", reviewId)
         .order("created_at", { ascending: true });
       if (data) setComments(data as ReviewComment[]);
@@ -278,13 +279,14 @@ function CommentCard({
             ) : (
               <span className="text-sm font-medium text-white">{displayName}</span>
             )}
-            {((author as any)?.active_title?.game?.cover_url ?? (author as any)?.active_title?.steam_app_id) && (
-              <div className="h-3.5 w-3.5 rounded-full overflow-hidden flex-shrink-0" title={(author as any).active_title.name}>
+            {((author as any)?.active_title?.game?.icon_hash ?? (author as any)?.active_title?.game?.cover_url ?? (author as any)?.active_title?.steam_app_id) && (
+              <div className="h-3.5 w-3.5 rounded-full overflow-hidden flex-shrink-0 bg-white/10" title={(author as any).active_title.name}>
                 <img
-                  src={portraitCover((author as any).active_title.game?.cover_url)
-                    ?? `https://cdn.cloudflare.steamstatic.com/steam/apps/${(author as any).active_title.steam_app_id}/header.jpg`}
+                  src={steamIconUrl((author as any).active_title.steam_app_id, (author as any).active_title.game?.icon_hash)
+                    ?? portraitCover((author as any).active_title.game?.cover_url)
+                    ?? ""}
                   alt={(author as any).active_title.name}
-                  className="w-full h-full object-cover object-top"
+                  className="w-full h-full object-cover object-center"
                 />
               </div>
             )}

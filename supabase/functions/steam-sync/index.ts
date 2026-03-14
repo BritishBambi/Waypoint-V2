@@ -58,7 +58,8 @@ async function discoverGamesFromIGDB(
   appIds: number[],
   igdbToken: string,
   igdbClientId: string,
-  admin: ReturnType<typeof createClient>
+  admin: ReturnType<typeof createClient>,
+  iconHashMap: Map<number, string>
 ): Promise<number> {
   const BATCH_SIZE = 500;
   let discovered = 0;
@@ -141,6 +142,7 @@ async function discoverGamesFromIGDB(
           genres:       (game.genres ?? []).map((g: any) => g.name),
           platforms:    (game.platforms ?? []).map((p: any) => p.name),
           steam_app_id: steamAppId,
+          icon_hash:    iconHashMap.get(steamAppId) ?? null,
         };
       })
       .filter(Boolean);
@@ -276,7 +278,7 @@ Deno.serve(async (req) => {
   try {
     const ownedRes = await fetch(
       `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/` +
-      `?key=${steamApiKey}&steamid=${steamId}&include_played_free_games=true&format=json`
+      `?key=${steamApiKey}&steamid=${steamId}&include_played_free_games=true&include_appinfo=1&format=json`
     );
     const ownedData = await ownedRes.json();
     ownedGames = ownedData?.response?.games ?? [];
@@ -291,7 +293,14 @@ Deno.serve(async (req) => {
     return json({ games_owned: 0, games_matched: 0, games_discovered: 0, new_titles: [], synced_at: new Date().toISOString() });
   }
 
-  // ── 5. Identify known vs unknown AppIDs ─────────────────────────────────────
+  // ── 5. Build icon hash map + identify known vs unknown AppIDs ───────────────
+  // include_appinfo=1 adds img_icon_url to each game entry.
+  const iconHashMap = new Map<number, string>();
+  ownedGames.forEach((g: any) => {
+    if (g.appid && g.img_icon_url) iconHashMap.set(g.appid, g.img_icon_url);
+  });
+  console.log(`[steam-sync] icon hashes available for ${iconHashMap.size} games`);
+
   const steamAppIds = ownedGames.map((g) => g.appid).filter(Boolean);
 
   const existingGames = await batchIn<{ id: number; steam_app_id: number; slug: string }>(
@@ -312,7 +321,7 @@ Deno.serve(async (req) => {
 
   if (unknownAppIds.length > 0 && igdbToken && igdbClientId) {
     console.log(`[steam-sync] Discovering ${unknownAppIds.length} unknown games from IGDB...`);
-    gamesDiscovered = await discoverGamesFromIGDB(unknownAppIds, igdbToken, igdbClientId, admin);
+    gamesDiscovered = await discoverGamesFromIGDB(unknownAppIds, igdbToken, igdbClientId, admin, iconHashMap);
     console.log(`[steam-sync] Discovery complete: ${gamesDiscovered} games added to DB`);
 
     // Re-fetch in batches to include newly discovered games
@@ -540,6 +549,28 @@ Deno.serve(async (req) => {
   }
 
   console.log(`[steam-sync] upserted ${upsertedCount}/${upsertRows.length} rows for user=${userId}`);
+
+  // ── 9. Update icon_hash for games that have titles ───────────────────────────
+  // Only title-bearing games need icons; skip the expense of updating every game.
+  try {
+    const { data: titledGames } = await admin
+      .from("titles")
+      .select("steam_app_id")
+      .not("steam_app_id", "is", null);
+
+    const titledAppIds = new Set((titledGames ?? []).map((t: any) => t.steam_app_id as number));
+
+    const iconUpdateRows = matched
+      .filter((g) => titledAppIds.has(g.steam_app_id) && iconHashMap.has(g.steam_app_id))
+      .map((g) => ({ id: g.id, icon_hash: iconHashMap.get(g.steam_app_id) }));
+
+    if (iconUpdateRows.length > 0) {
+      await admin.from("games").upsert(iconUpdateRows, { onConflict: "id" });
+      console.log(`[steam-sync] updated icon_hash for ${iconUpdateRows.length} titled games`);
+    }
+  } catch (e) {
+    console.error("[steam-sync] icon_hash update failed:", e);
+  }
 
   return json({
     games_owned:      ownedGames.length,
