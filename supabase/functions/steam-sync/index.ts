@@ -565,8 +565,25 @@ Deno.serve(async (req) => {
       .map((g) => ({ id: g.id, icon_hash: iconHashMap.get(g.steam_app_id) }));
 
     if (iconUpdateRows.length > 0) {
-      await admin.from("games").upsert(iconUpdateRows, { onConflict: "id" });
+      for (const row of iconUpdateRows) {
+        const { error } = await admin
+          .from("games")
+          .update({ icon_hash: row.icon_hash })
+          .eq("id", row.id);
+        if (error) {
+          console.error("[steam-sync] icon_hash update error:", error);
+        }
+      }
       console.log(`[steam-sync] updated icon_hash for ${iconUpdateRows.length} titled games`);
+
+      const { data: verify } = await admin
+        .from("games")
+        .select("title, icon_hash")
+        .in("id", iconUpdateRows.map((r) => r.id));
+      console.log(
+        "[steam-sync] icon_hash verify:",
+        verify?.map((g) => ({ title: g.title, hash: g.icon_hash?.slice(0, 8) }))
+      );
     }
   } catch (e) {
     console.error("[steam-sync] icon_hash update failed:", e);
