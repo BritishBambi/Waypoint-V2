@@ -317,12 +317,18 @@ export function EditProfileForm({
     setSyncing(false);
     if (res.ok) {
       const data = await res.json();
-      const { games_matched, new_titles } = data as { games_matched: number; new_titles?: Array<{ name: string }> };
+      const { games_matched, games_discovered, new_titles } = data as {
+        games_matched:    number;
+        games_discovered: number;
+        new_titles?:      Array<{ name: string }>;
+      };
       if (new_titles && new_titles.length > 0) {
         await loadTitles();
         setToast(`Title unlocked: "${new_titles[0].name}"!`);
       } else {
-        setToast(`Steam synced — ${games_matched} game${games_matched === 1 ? "" : "s"} matched`);
+        let msg = `Steam synced — ${games_matched} game${games_matched === 1 ? "" : "s"} matched`;
+        if (games_discovered > 0) msg += `, ${games_discovered} new game${games_discovered === 1 ? "" : "s"} added`;
+        setToast(msg);
       }
     } else {
       setToast("Steam sync failed. Try again later.");
