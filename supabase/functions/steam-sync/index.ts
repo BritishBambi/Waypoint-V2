@@ -247,6 +247,27 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ── DEBUG: one-off IGDB query to verify external_games.uid lookup ────────────
+  if (igdbToken && igdbClientId) {
+    try {
+      const debugRes = await fetch("https://api.igdb.com/v4/games", {
+        method: "POST",
+        headers: {
+          "Client-ID": igdbClientId,
+          "Authorization": `Bearer ${igdbToken}`,
+          "Content-Type": "text/plain",
+        },
+        body: `fields name, slug, external_games.uid, external_games.category; where external_games.uid = ("381210","730","578080","1716740"); limit 10;`,
+      });
+      const debugData = await debugRes.json();
+      console.log("[steam-sync] DEBUG IGDB response status:", debugRes.status);
+      console.log("[steam-sync] DEBUG IGDB raw response:", JSON.stringify(debugData));
+    } catch (e) {
+      console.error("[steam-sync] DEBUG IGDB query failed:", e);
+    }
+  }
+  // ── END DEBUG ─────────────────────────────────────────────────────────────────
+
   // ── 4. Fetch owned games from Steam ─────────────────────────────────────────
   let ownedGames: Array<{ appid: number; playtime_forever: number }>;
   try {
