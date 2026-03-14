@@ -78,7 +78,7 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
         body: trimmed,
         ...(replyTo ? { reply_to_id: replyTo.id } : {}),
       })
-      .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url)")
+      .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id))")
       .maybeSingle();
 
     if (insertErr) {
@@ -105,7 +105,7 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
     if (deleteErr) {
       const { data } = await (supabase as any)
         .from("review_comments")
-        .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url)")
+        .select("id, review_id, user_id, body, created_at, reply_to_id, profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id))")
         .eq("review_id", reviewId)
         .order("created_at", { ascending: true });
       if (data) setComments(data as ReviewComment[]);
@@ -269,13 +269,22 @@ function CommentCard({
       <div className="min-w-0 flex-1">
         {/* Meta row */}
         <div className="mb-1.5 flex items-baseline justify-between gap-2">
-          <div className="flex flex-wrap items-baseline gap-x-2">
+          <div className="flex flex-wrap items-center gap-x-2">
             {author?.username ? (
               <Link href={`/user/${author.username}`} className="text-sm font-medium text-white hover:underline">
                 {displayName}
               </Link>
             ) : (
               <span className="text-sm font-medium text-white">{displayName}</span>
+            )}
+            {(author as any)?.active_title?.steam_app_id && (
+              <div className="h-3.5 w-3.5 rounded-full overflow-hidden flex-shrink-0" title={(author as any).active_title.name}>
+                <img
+                  src={`https://cdn.cloudflare.steamstatic.com/steam/apps/${(author as any).active_title.steam_app_id}/header.jpg`}
+                  alt={(author as any).active_title.name}
+                  className="w-full h-full object-cover object-center"
+                />
+              </div>
             )}
             {author?.username && (
               <Link href={`/user/${author.username}`} className="text-xs text-zinc-500 hover:text-zinc-300">

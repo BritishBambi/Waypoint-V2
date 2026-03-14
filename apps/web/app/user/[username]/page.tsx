@@ -21,7 +21,6 @@ import { WishlistCarousel, type WishlistItem } from "./WishlistCarousel";
 import { ListCard } from "@/components/ListCard";
 import { SpoilerReveal } from "./SpoilerReveal";
 import { SteamBadge } from "./SteamBadge";
-import { UserTitle } from "@/components/UserTitle";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
 // Supabase returns nested objects for FK joins. We define our own shapes and
@@ -128,11 +127,12 @@ export default async function UserProfilePage({
   // ── Active title ─────────────────────────────────────────────────────────────
   const activeTitleId = (profile as any).active_title_id as string | null;
   const activeTitleRes = activeTitleId
-    ? await supabase.from("titles").select("name, color").eq("id", activeTitleId).maybeSingle()
+    ? await supabase.from("titles").select("name, color, steam_app_id").eq("id", activeTitleId).maybeSingle()
     : null;
-  const activeTitleData = activeTitleRes?.data as { name: string; color: string } | null;
+  const activeTitleData = activeTitleRes?.data as { name: string; color: string; steam_app_id: number | null } | null;
   const activeTitle = activeTitleData?.name ?? null;
   const activeTitleColor = activeTitleData?.color ?? null;
+  const activeTitleSteamAppId = activeTitleData?.steam_app_id ?? null;
 
   // ── Showcase fields ──────────────────────────────────────────────────────────
   const showcaseType    = (profile as any).showcase_type    as "review" | "list" | null;
@@ -416,8 +416,22 @@ export default async function UserProfilePage({
                 )}
               </div>
               {activeTitle && (
-                <div className="mt-1">
-                  <UserTitle name={activeTitle} color={activeTitleColor ?? undefined} />
+                <div className="mt-1 flex items-center gap-2">
+                  {activeTitleSteamAppId && (
+                    <div className="h-5 w-5 rounded-full overflow-hidden flex-shrink-0">
+                      <img
+                        src={`https://cdn.cloudflare.steamstatic.com/steam/apps/${activeTitleSteamAppId}/header.jpg`}
+                        alt=""
+                        className="w-full h-full object-cover object-center"
+                      />
+                    </div>
+                  )}
+                  <span
+                    className="text-sm font-medium"
+                    style={{ color: activeTitleColor ?? "#a78bfa" }}
+                  >
+                    {activeTitle}
+                  </span>
                 </div>
               )}
             </div>

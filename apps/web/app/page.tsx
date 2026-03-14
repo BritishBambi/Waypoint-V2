@@ -29,6 +29,8 @@ export type GameStub = {
 // reviews (one-to-one via UNIQUE FK on reviews.log_id → game_logs.id).
 // PostgREST 14+ returns one-to-one embeds as a single object (or null),
 // NOT as an array — so reviews is { rating: number | null } | null.
+type ActiveTitle = { name: string; color: string; steam_app_id: number | null } | null;
+
 type FeedItem = {
   id: string;
   status: string;
@@ -39,6 +41,7 @@ type FeedItem = {
     username: string;
     display_name: string | null;
     avatar_url: string | null;
+    active_title: ActiveTitle;
   } | null;
   reviews: { rating: number | null } | null;
 };
@@ -61,6 +64,7 @@ type RecentListItem = {
     username: string;
     display_name: string | null;
     avatar_url: string | null;
+    active_title: ActiveTitle;
   } | null;
   list_entries: Array<{ position: number | null; games: { cover_url: string | null } | null }>;
   list_likes: Array<{ id: string; created_at: string }>;
@@ -131,7 +135,7 @@ export default async function Home({
         .from("lists")
         .select(`
           id, title, description, created_at,
-          profiles!lists_user_id_fkey(username, display_name, avatar_url),
+          profiles!lists_user_id_fkey(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id)),
           list_entries(position, games(cover_url)),
           list_likes(id, created_at)
         `)
@@ -367,7 +371,7 @@ export default async function Home({
             .select(
               "id, status, created_at, updated_at, " +
                 "games(id, slug, title, cover_url), " +
-                "profiles(username, display_name, avatar_url), " +
+                "profiles(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id)), " +
                 "reviews!log_id(rating)"
             )
             .in("user_id", followedIds)
@@ -668,7 +672,7 @@ export default async function Home({
       .from("lists")
       .select(`
         id, title, description, created_at,
-        profiles!lists_user_id_fkey(username, display_name, avatar_url),
+        profiles!lists_user_id_fkey(username, display_name, avatar_url, active_title:titles!active_title_id(name, color, steam_app_id)),
         list_entries(position, games(cover_url)),
         list_likes(id)
       `)
@@ -1064,6 +1068,15 @@ function RecentListCard({ list }: { list: RecentListItem }) {
             </div>
           )}
           {displayName}
+          {profile.active_title?.steam_app_id && (
+            <div className="h-3.5 w-3.5 rounded-full overflow-hidden flex-shrink-0" title={profile.active_title.name}>
+              <img
+                src={`https://cdn.cloudflare.steamstatic.com/steam/apps/${profile.active_title.steam_app_id}/header.jpg`}
+                alt={profile.active_title.name}
+                className="w-full h-full object-cover object-center"
+              />
+            </div>
+          )}
         </Link>
       </div>
     </div>
