@@ -4,7 +4,6 @@
 // Logged-out: cinematic hero (full-bleed IGDB artwork backdrop) + features + trending + CTA
 // Logged-in:  welcome bar + popular games + Letterboxd-style friend activity grid + library
 
-import { type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -765,41 +764,21 @@ export default async function Home({
       </section>
 
       {/* ── Features ────────────────────────────────────────────────────────── */}
-      <section className="bg-zinc-950 px-4 py-20">
-        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-12 sm:grid-cols-3">
-          <Feature
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="2" y="6" width="20" height="12" rx="2" />
-                <path d="M6 12h4M8 10v4" />
-                <circle cx="15" cy="12" r="1" />
-                <circle cx="18" cy="12" r="1" />
-              </svg>
-            }
-            heading="Log Everything"
-            body="Every game you play, rated and remembered."
-          />
-          <Feature
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-            }
-            heading="Rate & Review"
-            body="Share your takes with people who get it."
-          />
-          <Feature
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            }
-            heading="Follow Friends"
-            body="See what your community is playing."
-          />
+      <section className="border-t border-zinc-800 bg-zinc-950 px-4 py-20">
+        <div className="mx-auto max-w-4xl divide-y divide-zinc-800">
+          {[
+            { n: "01", heading: "Log Everything",  body: "Every game you play, rated and remembered." },
+            { n: "02", heading: "Rate & Review",    body: "Share your takes with people who get it."  },
+            { n: "03", heading: "Follow Friends",   body: "See what your community is playing."       },
+          ].map(({ n, heading, body }) => (
+            <div key={n} className="flex gap-6 py-8 sm:gap-12 sm:py-10">
+              <span className="mt-1.5 w-6 shrink-0 font-serif text-xs tracking-wider text-zinc-600 sm:mt-2.5">{n}</span>
+              <div className="flex flex-1 flex-col gap-1.5 sm:flex-row sm:items-baseline sm:gap-12">
+                <h3 className="font-serif text-2xl font-bold text-white sm:w-56 sm:shrink-0 sm:text-3xl">{heading}</h3>
+                <p className="text-sm leading-relaxed text-zinc-400">{body}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -879,24 +858,6 @@ export default async function Home({
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
-function Feature({
-  icon,
-  heading,
-  body,
-}: {
-  icon: ReactNode;
-  heading: string;
-  body: string;
-}) {
-  return (
-    <div className="flex flex-col items-center text-center sm:items-start sm:text-left">
-      <div className="mb-4 text-violet-400">{icon}</div>
-      <h3 className="text-base font-semibold text-white">{heading}</h3>
-      <p className="mt-1 text-sm text-zinc-400">{body}</p>
-    </div>
-  );
-}
 
 // Letterboxd-style activity card for the friend feed grid.
 // The cover and avatar are separate <Link> elements (never nested) so both
