@@ -155,7 +155,7 @@ export default async function ReviewDetailPage({ params, searchParams }: Props) 
               )}
             </div>
             <div>
-              <p className="font-semibold text-white transition-colors group-hover:text-indigo-400">
+              <p className="font-semibold text-white transition-colors group-hover:text-violet-400">
                 {game.title}
               </p>
               {year && <p className="text-sm text-zinc-500">{year}</p>}

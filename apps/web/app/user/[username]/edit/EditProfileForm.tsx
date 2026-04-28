@@ -525,7 +525,7 @@ export function EditProfileForm({
                   placeholder="Search for a game…"
                   value={modalQuery}
                   onChange={(e) => setModalQuery(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 pl-9 pr-3 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 pl-9 pr-3 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
                 />
               </div>
             </div>
@@ -669,7 +669,7 @@ export function EditProfileForm({
             id="display_name" type="text" value={displayName}
             onChange={(e) => setDisplayName(e.target.value)} maxLength={50}
             placeholder="Your display name"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
           />
           {errors.displayName && <p className="mt-1 text-xs text-red-400">{errors.displayName}</p>}
         </div>
@@ -685,7 +685,7 @@ export function EditProfileForm({
               id="username" type="text" value={username}
               onChange={(e) => setUsername(e.target.value.toLowerCase())}
               maxLength={30} placeholder="your_username" autoComplete="username"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 pl-7 pr-10 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 py-2.5 pl-7 pr-10 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
             />
             <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
               {usernameStatus === "checking" && (
@@ -725,7 +725,7 @@ export function EditProfileForm({
           <textarea
             id="bio" value={bio} onChange={(e) => setBio(e.target.value)}
             maxLength={300} rows={4} placeholder="A short bio about yourself…"
-            className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
           />
           {errors.bio && <p className="mt-1 text-xs text-red-400">{errors.bio}</p>}
         </div>
@@ -738,7 +738,7 @@ export function EditProfileForm({
           <input
             id="website" type="url" value={website}
             onChange={(e) => setWebsite(e.target.value)} placeholder="https://example.com"
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
           />
           {errors.website && <p className="mt-1 text-xs text-red-400">{errors.website}</p>}
         </div>
@@ -773,7 +773,7 @@ export function EditProfileForm({
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                             className={`group relative aspect-[2/3] overflow-hidden rounded-lg bg-zinc-800 ${
-                              snapshot.isDragging ? "ring-2 ring-indigo-500 shadow-xl shadow-black/50" : ""
+                              snapshot.isDragging ? "ring-2 ring-violet-500 shadow-xl shadow-black/50" : ""
                             }`}
                           >
                             {game.cover_url ? (
@@ -820,7 +820,7 @@ export function EditProfileForm({
                             <button
                               type="button"
                               onClick={() => openModal(i)}
-                              className="flex aspect-[2/3] w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-zinc-700 transition-colors hover:border-indigo-500 hover:bg-indigo-500/5"
+                              className="flex aspect-[2/3] w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-zinc-700 transition-colors hover:border-violet-500 hover:bg-violet-500/5"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500" aria-hidden="true">
                                 <path d="M12 5v14M5 12h14" />
@@ -873,7 +873,7 @@ export function EditProfileForm({
               <select
                 value={featuredReviewId ?? ""}
                 onChange={(e) => setFeaturedReviewId(e.target.value || null)}
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               >
                 <option value="">Select a review…</option>
                 {userReviews.map((r) => (
@@ -897,7 +897,7 @@ export function EditProfileForm({
                 <select
                   value={showcaseList1Id ?? ""}
                   onChange={(e) => setShowcaseList1Id(e.target.value || null)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
                 >
                   <option value="">None</option>
                   {userLists.map((l) => (
@@ -910,7 +910,7 @@ export function EditProfileForm({
                 <select
                   value={showcaseList2Id ?? ""}
                   onChange={(e) => setShowcaseList2Id(e.target.value || null)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
                 >
                   <option value="">None</option>
                   {userLists.filter((l) => l.id !== showcaseList1Id).map((l) => (
@@ -937,7 +937,7 @@ export function EditProfileForm({
             <select
               value={activeTitleId ?? ""}
               onChange={(e) => setActiveTitleId(e.target.value || null)}
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
             >
               <option value="">None</option>
               {userTitles.map((t) => (
@@ -1044,7 +1044,7 @@ export function EditProfileForm({
           type="button"
           onClick={handleSave}
           disabled={saving || !saveable}
-          className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save Changes"}
         </button>

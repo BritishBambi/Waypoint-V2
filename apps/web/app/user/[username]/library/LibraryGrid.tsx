@@ -226,7 +226,7 @@ export function LibraryGrid({ logs, isOwnLibrary, userId, steamPlaytime }: Props
                           rows={2}
                           maxLength={5000}
                           autoFocus
-                          className="w-full resize-none rounded border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-xs text-white placeholder-zinc-600 focus:border-indigo-500 focus:outline-none"
+                          className="w-full resize-none rounded border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-xs text-white placeholder-zinc-600 focus:border-violet-500 focus:outline-none"
                         />
                         <div className="flex gap-1.5">
                           <button

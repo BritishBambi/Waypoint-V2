@@ -115,7 +115,7 @@ export default function RegisterPage() {
         <h1 className="text-2xl font-bold text-white">Create your account</h1>
         <p className="mt-2 text-sm text-zinc-400">
           Already have an account?{" "}
-          <Link href="/login" className="text-indigo-400 hover:text-indigo-300">
+          <Link href="/login" className="text-violet-400 hover:text-violet-300">
             Sign in
           </Link>
         </p>
@@ -141,7 +141,7 @@ export default function RegisterPage() {
               onChange={set("email")}
               autoComplete="email"
               placeholder="you@example.com"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
             />
             {errors.email && (
               <p className="mt-1 text-xs text-red-400">{errors.email}</p>
@@ -164,7 +164,7 @@ export default function RegisterPage() {
                 onChange={set("username")}
                 autoComplete="username"
                 placeholder="yourname"
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 py-2 pl-7 pr-3 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-800 py-2 pl-7 pr-3 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
             </div>
             {errors.username ? (
@@ -188,7 +188,7 @@ export default function RegisterPage() {
               onChange={set("password")}
               autoComplete="new-password"
               placeholder="••••••••"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
             />
             {errors.password && (
               <p className="mt-1 text-xs text-red-400">{errors.password}</p>
@@ -210,7 +210,7 @@ export default function RegisterPage() {
               onChange={set("confirmPassword")}
               autoComplete="new-password"
               placeholder="••••••••"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
             />
             {errors.confirmPassword && (
               <p className="mt-1 text-xs text-red-400">{errors.confirmPassword}</p>
@@ -220,7 +220,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-1 w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-1 w-full rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Creating account…" : "Create account"}
           </button>

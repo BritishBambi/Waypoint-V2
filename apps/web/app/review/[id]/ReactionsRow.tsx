@@ -104,7 +104,7 @@ export function ReactionsRow({
           aria-label={`React with ${emoji} (${counts[emoji] ?? 0})`}
           className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors disabled:opacity-50 ${
             userReactions.has(emoji)
-              ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20"
+              ? "border-violet-500/40 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20"
               : "border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white"
           }`}
         >
@@ -133,7 +133,7 @@ export function ReactionsRow({
                 aria-label={`React with ${emoji}`}
                 className={`flex h-9 w-9 items-center justify-center rounded-lg text-xl transition-colors ${
                   userReactions.has(emoji)
-                    ? "bg-indigo-500/20 ring-1 ring-indigo-500/40"
+                    ? "bg-violet-500/20 ring-1 ring-violet-500/40"
                     : "hover:bg-zinc-800"
                 }`}
               >

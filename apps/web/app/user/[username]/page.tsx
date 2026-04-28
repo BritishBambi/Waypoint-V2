@@ -869,7 +869,7 @@ function ShowcaseCard({ review, autoRevealSpoilers }: { review: FeaturedReview; 
         <div className="mb-1 flex flex-wrap items-baseline gap-2">
           <Link
             href={`/games/${games.slug}`}
-            className="font-semibold text-white transition-colors hover:text-indigo-300"
+            className="font-semibold text-white transition-colors hover:text-violet-300"
           >
             {games.title}
           </Link>
@@ -892,7 +892,7 @@ function ShowcaseCard({ review, autoRevealSpoilers }: { review: FeaturedReview; 
           <p className="text-sm leading-relaxed text-zinc-400">
             {truncated}
             {body && body.length > 300 && (
-              <Link href={`/review/${id}`} className="ml-1 text-indigo-400 transition-colors hover:text-indigo-300">
+              <Link href={`/review/${id}`} className="ml-1 text-violet-400 transition-colors hover:text-violet-300">
                 Read more…
               </Link>
             )}
@@ -994,7 +994,7 @@ function EmptyLibrary({ isOwnProfile }: { isOwnProfile: boolean }) {
       {isOwnProfile && (
         <Link
           href="/search"
-          className="mt-3 text-sm text-indigo-400 transition-colors hover:text-indigo-300"
+          className="mt-3 text-sm text-violet-400 transition-colors hover:text-violet-300"
         >
           Search for games to log →
         </Link>

@@ -46,7 +46,7 @@ const STATUSES = [
 type Status = (typeof STATUSES)[number]["value"];
 
 const STATUS_BADGE: Record<string, string> = {
-  playing:  "bg-indigo-500/20 text-indigo-300 border-indigo-500/40",
+  playing:  "bg-teal-500/20 text-teal-300 border-teal-500/40",
   played:   "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
   wishlist: "bg-amber-500/20 text-amber-300 border-amber-500/40",
   dropped:  "bg-red-500/20 text-red-300 border-red-500/40",
@@ -121,7 +121,7 @@ export function GameLogSection({ game, userId, existingLog }: Props) {
         // ── Unlogged state: primary CTA button ────────────────────────────────
         <button
           onClick={() => setIsOpen(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 active:bg-indigo-700"
+          className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 active:bg-violet-700"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -181,7 +181,7 @@ function StatusButton({
       }}
       className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
         current === value
-          ? "border-indigo-500 bg-indigo-500/20 text-indigo-300"
+          ? "border-violet-500 bg-violet-500/20 text-violet-300"
           : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"
       } ${className}`}
     >
@@ -522,7 +522,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
                 status === "dropped" ? "Why did you stop? Worth revisiting?" :
                 "When do you want to play this? Any context?"
               }
-              className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full resize-y rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
             />
           </div>
 
@@ -549,7 +549,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
               maxLength={5000}
               rows={3}
               placeholder="What did you think?"
-              className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
             />
             {note.trim() && showNotes && (
               <label className="mt-2.5 flex cursor-pointer select-none items-center gap-2 group">
@@ -590,7 +590,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
                     setIsSpoiler(false);
                     setPendingStatus(null);
                   }}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500"
+                  className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-500"
                 >
                   Yes, switch
                 </button>
@@ -612,7 +612,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+            className="rounded-lg bg-violet-600 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
           >
             {isSaving ? "Saving…" : "Save"}
           </button>

@@ -286,7 +286,7 @@ export default async function StatsPage({
           </p>
           <Link
             href="/search"
-            className="mt-4 text-sm text-indigo-400 transition-colors hover:text-indigo-300"
+            className="mt-4 text-sm text-violet-400 transition-colors hover:text-violet-300"
           >
             Search for games to log →
           </Link>

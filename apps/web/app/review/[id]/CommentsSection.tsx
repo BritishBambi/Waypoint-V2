@@ -175,7 +175,7 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
             onChange={(e) => setBody(e.target.value.slice(0, 500))}
             rows={3}
             placeholder={replyTo ? `Reply to @${replyTo.username}…` : "Leave a comment…"}
-            className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="w-full resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2.5 text-sm text-white placeholder-zinc-600 transition-colors focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
           />
           <div className="mt-2 flex items-center justify-between gap-4">
             <span
@@ -191,7 +191,7 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
             <button
               type="submit"
               disabled={isPosting || !body.trim()}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
             >
               {isPosting ? "Posting…" : replyTo ? "Post Reply" : "Post Comment"}
             </button>
@@ -201,7 +201,7 @@ export function CommentsSection({ reviewId, userId, initialComments }: Props) {
         <p className="text-sm text-zinc-500">
           <Link
             href="/login"
-            className="text-indigo-400 transition-colors hover:text-indigo-300"
+            className="text-violet-400 transition-colors hover:text-violet-300"
           >
             Log in
           </Link>{" "}
