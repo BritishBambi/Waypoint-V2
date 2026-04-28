@@ -325,7 +325,7 @@ export default async function GameDetailPage({ params }: Props) {
 
           {/* Game info */}
           <div className="flex flex-col md:pt-10">
-            <h1 className="text-3xl font-bold leading-tight text-white sm:text-4xl">
+            <h1 className="font-serif text-3xl font-bold leading-tight text-white sm:text-4xl">
               {game.title}
             </h1>
 

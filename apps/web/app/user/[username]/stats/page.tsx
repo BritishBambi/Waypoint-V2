@@ -241,7 +241,7 @@ export default async function StatsPage({
       </Link>
 
       {/* ── Heading ─────────────────────────────────────────────────────────── */}
-      <h1 className="mb-8 text-2xl font-bold text-white">{displayName}&apos;s Stats</h1>
+      <h1 className="font-serif mb-8 text-2xl font-bold text-white">{displayName}&apos;s Stats</h1>
 
       {/* ── Steam Library ─────────────────────────────────────────────────── */}
       {hasSteam && totalPlaytimeMinutes > 0 && (

@@ -7,7 +7,12 @@ const config: Config = {
     "./lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ["var(--font-geist-sans)", "sans-serif"],
+        serif: ["var(--font-display)", "serif"],
+      },
+    },
   },
   plugins: [],
 };
