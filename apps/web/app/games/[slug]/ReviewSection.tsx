@@ -241,16 +241,18 @@ function WriteReviewForm({
       </div>
 
       {/* Spoiler toggle */}
-      <div className="mb-4">
-        <label className="flex cursor-pointer select-none items-center gap-2 group">
-          <div
-            onClick={() => setIsSpoiler(!isSpoiler)}
-            className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${isSpoiler ? "bg-violet-600" : "bg-zinc-700"}`}
-          >
-            <div className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${isSpoiler ? "translate-x-4" : "translate-x-0"}`} />
-          </div>
-          <span className="text-sm text-zinc-400 transition-colors group-hover:text-zinc-300">This review contains spoilers</span>
-        </label>
+      <div className="mb-4 flex items-center gap-2">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isSpoiler}
+          onClick={() => setIsSpoiler(!isSpoiler)}
+          className={`relative h-5 w-9 shrink-0 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900 ${isSpoiler ? "bg-violet-600" : "bg-zinc-700"}`}
+        >
+          <span className="sr-only">Mark review as containing spoilers</span>
+          <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${isSpoiler ? "translate-x-4" : "translate-x-0"}`} aria-hidden="true" />
+        </button>
+        <span className="select-none text-sm text-zinc-400">This review contains spoilers</span>
       </div>
 
       {error && (

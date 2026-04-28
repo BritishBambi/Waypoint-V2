@@ -10,7 +10,7 @@
 // re-renders and ReviewSection receives the updated existingLog prop (it lives
 // outside the TanStack Query boundary).
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useId } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -216,6 +216,45 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
   const [isSaving, setIsSaving] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<Status | null>(null);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
+  // Focus management: save the previously focused element, move focus into the
+  // dialog on open, trap Tab within it, and restore focus on close.
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+
+    const focusable = () =>
+      Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ) ?? []
+      );
+
+    // Auto-focus the close button (first focusable element in the header).
+    focusable()[0]?.focus();
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      const els = focusable();
+      if (els.length === 0) return;
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      previousFocus?.focus();
+    };
+  }, [onClose]);
+
   const showPersonalNotes = status !== null && status !== "wishlist";
   const showRating = status === "playing" || status === "played";
   const showNotes = status === "playing" || status === "played";
@@ -402,12 +441,21 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
+      aria-hidden="true"
     >
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl"
+        aria-hidden="false"
+        onClick={(e) => e.stopPropagation()}
+      >
 
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
-          <p className="text-sm font-medium text-zinc-500">
+          <p id={titleId} className="text-sm font-medium text-zinc-500">
             {existingLog ? "Edit Log" : "Log this Game"}
           </p>
           <button
