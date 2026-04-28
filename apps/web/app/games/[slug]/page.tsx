@@ -481,7 +481,7 @@ export default async function GameDetailPage({ params }: Props) {
           <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-zinc-500">
             DLC &amp; Expansions
           </h2>
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <div className="flex gap-4 overflow-x-auto pb-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-purple-600/50 [&::-webkit-scrollbar-thumb]:rounded-full">
             {dlc.map((item) => (
               <DlcCard key={item.id} item={item} />
             ))}
