@@ -756,7 +756,7 @@ export function EditProfileForm({
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="grid grid-cols-5 gap-3"
+                  className="grid grid-cols-5 gap-2 sm:gap-3"
                 >
                   {slots.map((game, i) => (
                     <Draggable

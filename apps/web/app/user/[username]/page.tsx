@@ -506,7 +506,7 @@ export default async function UserProfilePage({
       {(hasFavourites || isOwnProfile) && (
         <section className="mt-10">
           <h2 className="mb-4 text-base font-semibold text-white">Favourite Games</h2>
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-5 gap-2 sm:gap-3">
             {favouriteSlots.map((game, i) =>
               game ? (
                 // Filled slot — cover with title tooltip on hover

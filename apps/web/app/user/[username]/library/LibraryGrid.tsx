@@ -91,7 +91,7 @@ export function LibraryGrid({ logs, isOwnLibrary, userId, steamPlaytime }: Props
             <button
               key={label}
               onClick={() => setActiveFilter(value)}
-              className={`flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                 isActive
                   ? "border-violet-500 text-white"
                   : "border-transparent text-zinc-500 hover:text-zinc-300"
@@ -232,13 +232,13 @@ export function LibraryGrid({ logs, isOwnLibrary, userId, steamPlaytime }: Props
                           <button
                             onClick={() => handleNoteSave(id)}
                             disabled={isSaving}
-                            className="rounded bg-violet-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+                            className="rounded bg-violet-600 px-3 py-2 text-xs font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
                           >
                             {isSaving ? "…" : "Save"}
                           </button>
                           <button
                             onClick={() => setEditingId(null)}
-                            className="rounded px-2 py-1 text-[10px] text-zinc-500 hover:text-white"
+                            className="rounded px-3 py-2 text-xs text-zinc-500 hover:text-white"
                           >
                             Cancel
                           </button>
@@ -261,7 +261,7 @@ export function LibraryGrid({ logs, isOwnLibrary, userId, steamPlaytime }: Props
                             <p className="min-w-0 flex-1 truncate text-xs italic text-white/40">
                               📝 &ldquo;{noteText}&rdquo;
                             </p>
-                            <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/noterow:opacity-100">
+                            <div className="flex shrink-0 items-center gap-1 sm:opacity-0 sm:transition-opacity sm:group-hover/noterow:opacity-100">
                               <button
                                 onClick={() => { setEditingId(id); setEditValue(noteText); }}
                                 title="Edit note"
