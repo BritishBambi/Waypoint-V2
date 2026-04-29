@@ -831,7 +831,7 @@ export default async function Home({
 
       {/* ── CTA ─────────────────────────────────────────────────────────────── */}
       <section className="border-t border-zinc-800 bg-zinc-950 px-4 py-20 text-center">
-        <h2 className="text-2xl font-bold text-white">
+        <h2 className="font-serif text-2xl font-bold text-white">
           Ready to start logging?
         </h2>
         <p className="mt-2 text-sm text-zinc-500">

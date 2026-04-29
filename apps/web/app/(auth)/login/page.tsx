@@ -49,7 +49,7 @@ export default function LoginPage() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-white">Sign in to Waypoint</h1>
+        <h1 className="font-serif text-2xl font-bold text-white">Sign in to Waypoint</h1>
         <p className="mt-2 text-sm text-zinc-400">
           Don&apos;t have an account?{" "}
           <Link href="/register" className="text-violet-400 hover:text-violet-300">

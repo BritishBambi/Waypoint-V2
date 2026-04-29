@@ -93,7 +93,7 @@ export default async function WishlistPage({ params }: Props) {
 
       {/* ── Heading + count ──────────────────────────────────────────────────── */}
       <div className="mb-8 flex items-baseline gap-3">
-        <h1 className="text-2xl font-bold text-white">
+        <h1 className="font-serif text-2xl font-bold text-white">
           {displayName}&apos;s Wishlist
         </h1>
         <span className="text-sm text-zinc-500">

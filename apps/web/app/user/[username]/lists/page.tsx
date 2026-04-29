@@ -67,7 +67,7 @@ export default async function UserListsPage({
       {/* ── Heading ─────────────────────────────────────────────────────────── */}
       <div className="mb-8 flex items-center justify-between gap-4">
         <div className="flex items-baseline gap-3">
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="font-serif text-2xl font-bold text-white">
             {displayName}&apos;s Lists
           </h1>
           <span className="text-sm text-zinc-500">

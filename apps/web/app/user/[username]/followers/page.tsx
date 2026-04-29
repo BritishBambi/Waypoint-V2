@@ -101,7 +101,7 @@ export default async function FollowersPage({
         >
           ← @{username}
         </Link>
-        <h1 className="mt-2 text-2xl font-bold text-white">
+        <h1 className="font-serif mt-2 text-2xl font-bold text-white">
           {displayName}&apos;s Followers
         </h1>
         <p className="text-sm text-zinc-500">

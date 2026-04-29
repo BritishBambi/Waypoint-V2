@@ -593,7 +593,7 @@ export function EditProfileForm({
           </svg>
           Back to profile
         </Link>
-        <h1 className="mt-4 text-2xl font-bold text-white">Edit Profile</h1>
+        <h1 className="font-serif mt-4 text-2xl font-bold text-white">Edit Profile</h1>
       </div>
 
       {/* ── Form ────────────────────────────────────────────────────────────── */}

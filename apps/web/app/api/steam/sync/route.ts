@@ -47,9 +47,7 @@ export async function POST() {
       body: JSON.stringify({ steam_id: steamId }),
     });
 
-    console.log('edge function response status:', syncRes.status);
     const body = await syncRes.text();
-    console.log('edge function response body:', body);
 
     if (!syncRes.ok) {
       return Response.json(

@@ -112,7 +112,7 @@ export default function RegisterPage() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-white">Create your account</h1>
+        <h1 className="font-serif text-2xl font-bold text-white">Create your account</h1>
         <p className="mt-2 text-sm text-zinc-400">
           Already have an account?{" "}
           <Link href="/login" className="text-violet-400 hover:text-violet-300">
