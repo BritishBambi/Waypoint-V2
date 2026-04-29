@@ -453,7 +453,7 @@ export default async function GameDetailPage({ params }: Props) {
             {steamData.achievements_total > 0 && (
               <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                 <div
-                  className="h-1.5 rounded-full bg-violet-500 transition-all"
+                  className="h-1.5 rounded-full bg-violet-500 transition-[width]"
                   style={{
                     width: `${Math.round(
                       (steamData.achievements_unlocked / steamData.achievements_total) * 100

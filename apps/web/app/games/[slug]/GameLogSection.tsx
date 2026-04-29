@@ -505,7 +505,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
           </div>
 
           {/* Personal Notes — private, shown for all statuses except Wishlist */}
-          <div className={`overflow-hidden transition-all duration-200 ${showPersonalNotes ? "max-h-64 opacity-100" : "max-h-0 opacity-0"}`}>
+          <div className={`overflow-hidden transition-[max-height,opacity] duration-200 ${showPersonalNotes ? "max-h-64 opacity-100" : "max-h-0 opacity-0"}`}>
             <label htmlFor="personal-notes" className="mb-1 block text-xs font-medium uppercase tracking-wider text-zinc-500">
               Personal Notes
             </label>
@@ -527,7 +527,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
           </div>
 
           {/* Rating (optional) — shown for Playing and Completed only */}
-          <div className={`overflow-hidden transition-all duration-200 ${showRating ? "max-h-16 opacity-100" : "max-h-0 opacity-0"}`}>
+          <div className={`overflow-hidden transition-[max-height,opacity] duration-200 ${showRating ? "max-h-16 opacity-100" : "max-h-0 opacity-0"}`}>
             <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500">
               Your Rating <span className="normal-case text-zinc-600">(optional)</span>
             </label>
@@ -535,7 +535,7 @@ function LogModal({ game, userId, existingLog, isUnreleased, onClose, onSaved }:
           </div>
 
           {/* Write a Review (optional) — shown for Playing and Completed only */}
-          <div className={`overflow-hidden transition-all duration-200 ${showNotes ? "max-h-64 opacity-100" : "max-h-0 opacity-0"}`}>
+          <div className={`overflow-hidden transition-[max-height,opacity] duration-200 ${showNotes ? "max-h-64 opacity-100" : "max-h-0 opacity-0"}`}>
             <label
               htmlFor="log-note"
               className="mb-2 block text-xs font-medium uppercase tracking-wider text-zinc-500"

@@ -610,7 +610,7 @@ function PopularGameCard({ game }: { game: PopularGame }) {
   return (
     <Link
       href={`/games/${game.slug}`}
-      className="group flex flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 transition-all duration-200 hover:-translate-y-1 hover:border-zinc-600 hover:shadow-xl hover:shadow-black/40"
+      className="group flex flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 transition duration-200 hover:-translate-y-1 hover:border-zinc-600 hover:shadow-xl hover:shadow-black/40"
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-800">
         {coverUrl ? (
@@ -778,7 +778,7 @@ function GameCard({ game }: { game: GameSearchResult }) {
   return (
     <Link
       href={`/games/${game.slug}`}
-      className="group flex flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 transition-all duration-200 hover:-translate-y-1 hover:border-zinc-600 hover:shadow-xl hover:shadow-black/40"
+      className="group flex flex-col overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900 transition duration-200 hover:-translate-y-1 hover:border-zinc-600 hover:shadow-xl hover:shadow-black/40"
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden bg-zinc-800">
         {game.cover_url ? (

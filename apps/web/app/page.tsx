@@ -413,11 +413,11 @@ export default async function Home({
             <div className="flex items-center gap-4">
               <Link href={`/user/${username}`}>
                 {profile?.avatar_url ? (
-                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-violet-500/50 transition-all hover:ring-violet-400">
+                  <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-violet-500/50 transition-shadow hover:ring-violet-400">
                     <Image src={profile.avatar_url} alt={displayName} fill sizes="56px" className="object-cover" />
                   </div>
                 ) : (
-                  <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white ring-2 ring-violet-500/50 transition-all hover:ring-violet-400 ${avatarBg(username)}`}>
+                  <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-xl font-bold text-white ring-2 ring-violet-500/50 transition-shadow hover:ring-violet-400 ${avatarBg(username)}`}>
                     {displayName.slice(0, 1).toUpperCase()}
                   </div>
                 )}
