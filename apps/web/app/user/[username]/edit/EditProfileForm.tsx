@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useGameSearch, type GameSearchResult } from "@waypoint/api-client";
 import { igdbCover } from "@/lib/igdb";
 import type { Tables } from "@waypoint/types";
+import { avatarBg } from "@/lib/avatarBg";
 
 type Profile = Tables<"profiles">;
 
@@ -47,20 +48,8 @@ type TitleOption = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const AVATAR_COLORS = [
-  "bg-indigo-600", "bg-violet-600", "bg-teal-600", "bg-rose-600",
-  "bg-amber-600",  "bg-emerald-600", "bg-sky-600",  "bg-pink-600",
-];
-
 const USERNAME_RE = /^[a-z0-9_]{3,30}$/;
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024; // 2 MB
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function avatarBg(username: string): string {
-  const hash = username.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
 

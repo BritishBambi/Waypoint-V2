@@ -10,6 +10,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { igdbCover } from "@/lib/igdb";
+import { avatarBg } from "@/lib/avatarBg";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,18 +22,6 @@ export type SuggestedUser = {
   sharedGames: number; // 0 = popular-user fallback
   favouriteCovers: string[]; // up to 3 IGDB cover URL fragments
 };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const AVATAR_COLORS = [
-  "bg-indigo-600", "bg-violet-600", "bg-teal-600", "bg-rose-600",
-  "bg-amber-600", "bg-emerald-600", "bg-sky-600", "bg-pink-600",
-];
-
-function avatarBg(username: string): string {
-  const hash = username.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
 
 // ─── Widget ───────────────────────────────────────────────────────────────────
 

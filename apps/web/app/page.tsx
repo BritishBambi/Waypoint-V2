@@ -14,6 +14,7 @@ import { UpcomingCarousel } from "./UpcomingCarousel";
 import { WelcomeToast } from "@/components/WelcomeToast";
 import { WhoToFollowWidget, type SuggestedUser } from "./WhoToFollowWidget";
 import { ChangelogModal } from "@/components/ChangelogModal";
+import { avatarBg } from "@/lib/avatarBg";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -72,11 +73,6 @@ type RecentListItem = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const AVATAR_COLORS = [
-  "bg-indigo-600", "bg-violet-600", "bg-teal-600", "bg-rose-600",
-  "bg-amber-600", "bg-emerald-600", "bg-sky-600", "bg-pink-600",
-];
-
 // Curated games for the logged-out hero background rotation.
 // Slugs are verified against IGDB. Artwork-first, screenshot fallback.
 const HERO_GAME_SLUGS = [
@@ -88,11 +84,6 @@ const HERO_GAME_SLUGS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function avatarBg(username: string): string {
-  const hash = username.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });

@@ -17,6 +17,7 @@ import { useGameSearch, type GameSearchResult } from "@waypoint/api-client";
 import { createClient } from "@/lib/supabase/client";
 import { igdbCover } from "@/lib/igdb";
 import { FollowButton } from "@/app/user/[username]/FollowButton";
+import { avatarBg } from "@/lib/avatarBg";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,16 +57,6 @@ function useDebounce(value: string, ms: number) {
     return () => clearTimeout(id);
   }, [value, ms]);
   return debounced;
-}
-
-const AVATAR_COLORS = [
-  "bg-indigo-600", "bg-violet-600", "bg-teal-600", "bg-rose-600",
-  "bg-amber-600", "bg-emerald-600", "bg-sky-600", "bg-pink-600",
-];
-
-function avatarBg(username: string): string {
-  const hash = username.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
 }
 
 // ─── Data hooks ───────────────────────────────────────────────────────────────

@@ -10,18 +10,7 @@ import { notFound } from "next/navigation";
 import type { Tables } from "@waypoint/types";
 import { createClient } from "@/lib/supabase/server";
 import { FollowButton } from "../FollowButton";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const AVATAR_COLORS = [
-  "bg-indigo-600", "bg-violet-600", "bg-teal-600", "bg-rose-600",
-  "bg-amber-600", "bg-emerald-600", "bg-sky-600", "bg-pink-600",
-];
-
-function avatarBg(username: string): string {
-  const hash = username.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
+import { avatarBg } from "@/lib/avatarBg";
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 

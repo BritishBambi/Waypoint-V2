@@ -22,6 +22,7 @@ import { WishlistCarousel, type WishlistItem } from "./WishlistCarousel";
 import { ListCard } from "@/components/ListCard";
 import { SpoilerReveal } from "./SpoilerReveal";
 import { SteamBadge } from "./SteamBadge";
+import { avatarBg } from "@/lib/avatarBg";
 
 // ─── Join types ───────────────────────────────────────────────────────────────
 // Supabase returns nested objects for FK joins. We define our own shapes and
@@ -74,26 +75,7 @@ type ShowcaseListData = {
 };
 
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-// Fixed palette for generated avatars — consistent per username via hash.
-const AVATAR_COLORS = [
-  "bg-indigo-600",
-  "bg-violet-600",
-  "bg-teal-600",
-  "bg-rose-600",
-  "bg-amber-600",
-  "bg-emerald-600",
-  "bg-sky-600",
-  "bg-pink-600",
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function avatarBg(username: string): string {
-  const hash = username.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[hash % AVATAR_COLORS.length];
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", {
